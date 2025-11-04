@@ -170,7 +170,7 @@ const TransferScreen = ({ onExit, transferItems, setView }) => {
                               <option value="Damaged">Damaged</option>
                             </select>
                           ) : (
-                            <span className="text-secondary">N/A</span>
+                            <span className="text-secondary">None</span>
                           )}
                         </TableData>
                         <TableData>{product.barcode}</TableData>

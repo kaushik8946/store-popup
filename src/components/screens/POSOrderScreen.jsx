@@ -59,7 +59,7 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
         return {
           ...product,
           userQty: newQty,
-          reason: isPartial ? 'N/A' : 'N/A'
+          reason: isPartial ? 'None' : 'None'
         };
       }
       return product;
@@ -167,7 +167,7 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
           barcode: productToPick.barcode,
           qty: qtyToAdd,
           amount: qtyToAdd * productToPick.mrp,
-          reason: 'N/A',
+          reason: 'None',
           status: 'PICKED' // Add status field for transfer screen
         };
         return [...prevInvoice, newInvoiceItem];
@@ -219,7 +219,7 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
               ...p,
               qty: p.qty + removedQty,
               userQty: 0,
-              reason: 'N/A'
+              reason: 'None'
             };
           }
           return p;
@@ -233,7 +233,7 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
           ...originalProduct,
           qty: removedQty,
           userQty: 0,
-          reason: 'N/A'
+          reason: 'None'
         };
 
         const newPicklist = [...prevPicklist, newProduct].sort((a, b) => a.sNo - b.sNo);
