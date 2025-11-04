@@ -19,12 +19,12 @@ export const MOCK_CONFIG = {
 
 // Mock product data for the POS Order Screen (Extended)
 export const MOCK_ORDER_PRODUCTS = [
-    { sNo: 1, productName: 'DOLO 650MG TAB', manufacturer: 'MICRO LABS LIMITED', batch: 'DOB54044', pack: '40', dt: '09-27', mrp: 2.06, qty: 15, userQty: 15, amount: 30.90, barcode: '1124554000123' },
-    { sNo: 2, productName: 'ECOSPRIN 75MG TAB', manufacturer: 'USV PVT LTD', batch: '25441154', pack: '10', dt: '03-27', mrp: 0.40, qty: 14, userQty: 14, amount: 5.60, barcode: '1122956000456' },
-    { sNo: 3, productName: 'PAN 40MG TAB', manufacturer: 'ALKEM LABORATORIES', batch: '25441154', pack: '100', dt: '09-27', mrp: 11.22, qty: 15, userQty: 15, amount: 168.30, barcode: '1122956000789' },
-    { sNo: 4, productName: 'OKACET TAB', manufacturer: 'CIPLA', batch: '5850323', pack: '20', dt: '03-28', mrp: 2.14, qty: 10, userQty: 10, amount: 21.40, barcode: '1124845001234' },
-    { sNo: 5, productName: 'PARACIP 500MG', manufacturer: 'CIPLA', batch: '7789012', pack: '15', dt: '11-26', mrp: 1.50, qty: 8, userQty: 8, amount: 12.00, barcode: '1124845005678' },
-    { sNo: 6, productName: 'AMOXICILLIN 250MG', manufacturer: 'GLAXO', batch: 'A1B2C3D4', pack: '10', dt: '12-26', mrp: 5.00, qty: 20, userQty: 20, amount: 100.00, barcode: '1124845009012' },
+    { sNo: 1, productName: 'DOLO 650MG TAB', manufacturer: 'MICRO LABS LIMITED', batch: 'DOB54044', pack: '10', dt: '09-27', mrp: 2.06, qty: 30, userQty: 30, amount: 61.80, barcode: '1124554000123' },
+    { sNo: 2, productName: 'ECOSPRIN 75MG TAB', manufacturer: 'USV PVT LTD', batch: '25441154', pack: '10', dt: '03-27', mrp: 0.40, qty: 20, userQty: 20, amount: 8.00, barcode: '1122956000456' },
+    { sNo: 3, productName: 'PAN 40MG TAB', manufacturer: 'ALKEM LABORATORIES', batch: '25441154', pack: '15', dt: '09-27', mrp: 11.22, qty: 20, userQty: 20, amount: 224.40, barcode: '1122956000789' },
+    { sNo: 4, productName: 'OKACET TAB', manufacturer: 'CIPLA', batch: '5850323', pack: '10', dt: '03-28', mrp: 2.14, qty: 10, userQty: 10, amount: 21.40, barcode: '1124845001234' },
+    { sNo: 5, productName: 'PARACIP 500MG', manufacturer: 'CIPLA', batch: '7789012', pack: '10', dt: '11-26', mrp: 1.50, qty: 20, userQty: 20, amount: 30.00, barcode: '1124845005678' },
+    { sNo: 6, productName: 'AMOXICILLIN 250MG', manufacturer: 'GLAXO', batch: 'A1B2C3D4', pack: '10', dt: '12-26', mrp: 5.00, qty: 21, userQty: 21, amount: 105.00, barcode: '1124845009012' },
 ];
 
 export const MOCK_SALE_ORDER_PRODUCTS = [
