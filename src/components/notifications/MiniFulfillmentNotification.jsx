@@ -141,14 +141,6 @@ const MiniFulfillmentNotification = ({ request, onSkip, onProcess, onReject, isM
         {/* Action Buttons Row */}
         <div className="d-flex justify-content-between gap-3">
 
-          {/* Reject Button */}
-          <button
-            onClick={onReject}
-            className="btn btn-danger btn-sm flex-grow-1 d-flex align-items-center justify-content-center"
-          >
-            <X size={16} className="me-1" /> Reject
-          </button>
-
           {/* Skip Button (Conditional) */}
           {isSkipAllowed && (
             <button
@@ -159,12 +151,12 @@ const MiniFulfillmentNotification = ({ request, onSkip, onProcess, onReject, isM
             </button>
           )}
 
-          {/* Accept Button */}
+          {/* Process Button (Yellow) */}
           <button
             onClick={handleAccept}
-            className={`btn btn-success btn-sm flex-grow-1 d-flex align-items-center justify-content-center ${!isSkipAllowed ? 'w-100' : ''}`}
+            className={`btn btn-warning btn-sm flex-grow-1 d-flex align-items-center justify-content-center ${!isSkipAllowed ? 'w-100' : ''}`}
           >
-            <Check size={16} className="me-1" /> Accept Transfer
+            <Check size={16} className="me-1" /> Process
           </button>
         </div>
       </div>

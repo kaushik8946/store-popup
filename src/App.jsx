@@ -26,6 +26,7 @@ const App = () => {
   const [requestData, setRequestData] = useState(MOCK_TO_REQUEST);
   const [isNotificationActive, setIsNotificationActive] = useState(true);
   const [itemsToTransfer, setItemsToTransfer] = useState([]);
+  const [continueMessage, setContinueMessage] = useState(null);
 
   // Derived states
   const MAX_SKIPS = MOCK_CONFIG.noOfTimes - 1;
@@ -80,7 +81,13 @@ const App = () => {
   }, [requestData]);
 
   const handleContinueTransfer = useCallback((invoicedItems) => {
-    setItemsToTransfer(invoicedItems);
+    if (invoicedItems.length === 0 || !invoicedItems.some(item => item.reason === 'Damaged')) {
+      setContinueMessage('No products to transfer');
+      return;
+    }
+    // Only include products with reason 'None'
+    const filteredItems = invoicedItems.filter(item => item.reason === 'None');
+    setItemsToTransfer(filteredItems);
     setView('TRANSFER_SCREEN');
   }, []);
 
@@ -104,7 +111,7 @@ const App = () => {
   if (view === 'HOME') {
     mainContent = <HomeView />;
   } else if (view === 'ORDER') {
-    mainContent = <POSOrderScreen onExit={handleExitOrderScreen} onContinue={handleContinueTransfer} />;
+    mainContent = <POSOrderScreen onExit={handleExitOrderScreen} onContinue={handleContinueTransfer} continueMessage={continueMessage} setContinueMessage={setContinueMessage} />;
   } else if (view === 'TRANSFER_SCREEN') {
     mainContent = <TransferScreen onExit={handleExitOrderScreen} transferItems={itemsToTransfer} setView={setView} />;
   }

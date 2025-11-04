@@ -165,7 +165,7 @@ const TransferScreen = ({ onExit, transferItems, setView }) => {
                               value={currentReason}
                               onChange={(e) => handleReasonChange(product.sNo, e.target.value)}
                             >
-                              <option value="">Select Reason</option>
+                              <option value="None">None</option>
                               <option value="Short">Short</option>
                               <option value="Damaged">Damaged</option>
                             </select>

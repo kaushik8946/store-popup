@@ -7,14 +7,28 @@ import { TableHeader, TableData } from '../common/TableComponents';
 /**
  * Screen displayed after processing the TO request, simulating the main POS transaction screen.
  */
-const POSOrderScreen = ({ onExit, onContinue }) => {
+const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessage }) => {
   // 1. Initialize State: Picklist starts with products 1, 2, and 3
-  const initialPicklist = MOCK_ORDER_PRODUCTS.slice(0, 3).map(p => ({
-    ...p,
-    userQty: 0, // Start with 0 picked quantity (Input is for user entry)
-    reason: 'N/A', // Default reason
-    barcode: '' // Start with empty barcode
-  }));
+  const initialPicklist = MOCK_ORDER_PRODUCTS.slice(0, 3).map(p => {
+    // Find a batch where pack size divides qty evenly, otherwise use first batch
+    let selectedBatchData = p.batches ? p.batches[0] : null;
+    
+    if (p.batches) {
+      const divisibleBatch = p.batches.find(batch => p.qty % parseInt(batch.pack) === 0);
+      if (divisibleBatch) {
+        selectedBatchData = divisibleBatch;
+      }
+    }
+    
+    return {
+      ...p,
+      userQty: 0, // Start with 0 picked quantity (Input is for user entry)
+      reason: 'None', // Default reason
+      barcode: '', // Start with empty barcode
+      selectedBatch: selectedBatchData ? selectedBatchData.batchNo : p.batch, // Default to divisible batch
+      pack: selectedBatchData ? selectedBatchData.pack : p.pack // Default to divisible batch's pack size
+    };
+  });
 
   // 2. Initialize State: Invoice starts empty (as requested)
   const initialInvoice = [];
@@ -22,6 +36,13 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
   const [picklistProducts, setPicklistProducts] = useState(initialPicklist);
   const [invoiceProducts, setInvoiceProducts] = useState(initialInvoice);
   const [message, setMessage] = useState(null);
+
+  // Show continueMessage if present
+  React.useEffect(() => {
+    if (continueMessage) {
+      setTimeout(() => setContinueMessage(null), 2500);
+    }
+  }, [continueMessage, setContinueMessage]);
 
   // Helper function to find the original product template by sNo
   const getOriginalProduct = (sNo) => {
@@ -75,11 +96,36 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
     }));
   };
 
+  const handleBatchChange = (sNo, batchNo) => {
+    setPicklistProducts(prev => prev.map(product => {
+      if (product.sNo === sNo) {
+        const originalProduct = MOCK_ORDER_PRODUCTS.find(p => p.sNo === sNo);
+        const selectedBatchData = originalProduct.batches.find(b => b.batchNo === batchNo);
+        return { 
+          ...product, 
+          selectedBatch: batchNo,
+          pack: selectedBatchData ? selectedBatchData.pack : product.pack
+        };
+      }
+      return product;
+    }));
+  };
+
   /**
    * Adds the user-specified quantity of the product to the invoice (incrementing quantity if it exists)
    * and decrements the required quantity in the picklist.
    */
   const handleAddOneItem = (productToPick) => {
+    if (productToPick.reason !== 'None') {
+      setMessage("Can't add short or damaged product");
+      setPicklistProducts(prev =>
+        prev.map(p =>
+          p.sNo === productToPick.sNo ? { ...p, barcode: '' } : p
+        )
+      );
+      return;
+    }
+
     const qtyToAdd = productToPick.userQty;
     const requiredQty = productToPick.qty;
 
@@ -117,7 +163,6 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
           manufacturer: productToPick.manufacturer,
           pack: productToPick.pack,
           batch: productToPick.batch,
-          dt: productToPick.dt,
           mrp: productToPick.mrp,
           barcode: productToPick.barcode,
           qty: qtyToAdd,
@@ -202,8 +247,9 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
   const totalInvoiceAmount = invoiceProducts.reduce((sum, p) => sum + p.amount, 0).toFixed(2);
 
   return (
-    <div className="container-fluid p-4">
-      {message && <MessageBox message={message} onClose={() => setMessage(null)} />}
+    <div className="container-fluid py-3">
+      {message && <MessageBox message={message} onClose={() => setMessage(null)} type="danger" />}
+      {continueMessage && <MessageBox message={continueMessage} onClose={() => setContinueMessage(null)} type="warning" />}
 
       <h2 className="fs-5 fw-bold text-dark mb-4 border-bottom pb-2 d-flex align-items-center">
         <Truck size={24} className='me-2 text-danger' /> Transaction POS Screen
@@ -250,7 +296,6 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
                   <TableHeader>Barcode</TableHeader>
                   <TableHeader>Req. Units</TableHeader>
                   <TableHeader>Reason</TableHeader>
-                  <TableHeader>Dt</TableHeader>
                 </tr></thead>
                 <tbody>
                   {picklistProducts.map((product) => {
@@ -265,53 +310,26 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
                         <TableData>{product.manufacturer}</TableData>
                         <TableData className='fw-semibold text-info'>{product.pack}</TableData>
                         <TableData>
-                          <select className="form-select form-select-sm rounded-3" style={{width: '120px'}}>
-                              {product.sNo === 1 && <>
-                                  <option>20240731</option>
-                                  <option>20240801</option>
-                                  <option>20240815</option>
-                                  <option>20240901</option>
-                              </>}
-                              {product.sNo === 2 && <>
-                                  <option>A123B456</option>
-                                  <option>A124B457</option>
-                                  <option>A125B458</option>
-                                  <option>A126B459</option>
-                              </>}
-                              {product.sNo === 3 && <>
-                                  <option>20240815</option>
-                                  <option>B4562024</option>
-                                  <option>DL23081507</option>
-                                  <option>ABC10010</option>
-                              </>}
-                              {product.sNo === 4 && <>
-                                  <option>DL23052405</option>
-                                  <option>DL23052406</option>
-                                  <option>DL23052407</option>
-                                  <option>DL23052408</option>
-                              </>}
-                              {product.sNo === 5 && <>
-                                  <option>24073100</option>
-                                  <option>24080101</option>
-                                  <option>24081502</option>
-                                  <option>24090103</option>
-                              </>}
-                              {product.sNo === 6 && <>
-                                  <option>ABC10001</option>
-                                  <option>ABC10002</option>
-                                  <option>ABC10003</option>
-                                  <option>ABC10004</option>
-                              </>}
+                          <select 
+                            className="form-select form-select-sm rounded-3 bg-white border-dark border-opacity-25" 
+                            style={{width: '120px'}}
+                            value={product.selectedBatch || product.batch}
+                            onChange={(e) => handleBatchChange(product.sNo, e.target.value)}
+                          >
+                            {MOCK_ORDER_PRODUCTS.find(p => p.sNo === product.sNo)?.batches?.map((batch, idx) => (
+                              <option key={idx} value={batch.batchNo}>{batch.batchNo}</option>
+                            ))}
                           </select>
                         </TableData>
                         <TableData>
                           <input
                             type="text"
-                            className="form-control form-control-sm rounded-3"
+                            className="form-control form-control-sm rounded-3 bg-white border-dark border-opacity-25 fw-semibold text-primary"
                             value={product.barcode}
                             onChange={(e) => handleBarcodeChange(product.sNo, e.target.value)}
-                            style={{width: '100px'}}
-                            disabled={product.qty < parseInt(product.pack)}
+                            style={{width: '110px', cursor: (product.qty < parseInt(product.pack) || product.reason !== 'None') ? 'not-allowed' : 'text'}}
+                            disabled={product.qty < parseInt(product.pack) || product.reason !== 'None'}
+                            placeholder={product.reason === 'None' ? 'Scan here...' : ''}
                           />
                         </TableData>
                         <TableData className='fw-semibold text-primary'>{product.qty}</TableData>
@@ -321,14 +339,13 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
                             value={product.reason}
                             onChange={(e) => handleReasonChange(product.sNo, e.target.value)}
                             className={`form-select form-select-sm rounded-3 ${isReasonRequired ? 'bg-warning-subtle border-warning' : 'bg-light text-secondary'}`}
-                            style={{ width: '120px' }}
+                            style={{width: '120px'}}
                           >
-                            <option value="N/A" disabled>Select Reason</option>
+                            <option value="None">None</option>
                             <option value="Short">Short</option>
                             <option value="Damaged">Damaged</option>
                           </select>
                         </TableData>
-                        <TableData>{product.dt}</TableData>
                       </tr>
                     );
                   })}
@@ -350,7 +367,6 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
                   <TableHeader>Manufacturer</TableHeader>
                   <TableHeader>Pack</TableHeader>
                   <TableHeader>Batch</TableHeader>
-                  <TableHeader>Dt</TableHeader>
                   <TableHeader>MRP</TableHeader>
                   <TableHeader>Qty</TableHeader>
                   <TableHeader>Amount</TableHeader>
@@ -365,7 +381,6 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
                       <TableData>{product.manufacturer}</TableData>
                       <TableData>{product.pack}</TableData>
                       <TableData>{product.batch}</TableData>
-                      <TableData>{product.dt}</TableData>
                       <TableData>₹{product.mrp.toFixed(2)}</TableData>
                       <TableData className='fw-semibold'>{product.qty}</TableData>
                       <TableData className='fw-bold text-danger'>₹{product.amount.toFixed(2)}</TableData>
@@ -414,7 +429,6 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
                   <TableHeader>Manufacturer</TableHeader>
                   <TableHeader>Pack</TableHeader>
                   <TableHeader>Batch</TableHeader>
-                  <TableHeader>Dt</TableHeader>
                   <TableHeader>Order Qty</TableHeader>
                   <TableHeader>Alternatives</TableHeader>
                   <TableHeader>Suggestions</TableHeader>
@@ -427,7 +441,6 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
                       <TableData>{product.sNo}</TableData>
                       <TableData className="fw-medium">{product.productName}</TableData>
                       <TableData>{product.manufacturer}</TableData>
-                      <TableData>-</TableData>
                       <TableData>-</TableData>
                       <TableData>-</TableData>
                       <TableData className='fw-semibold'>{product.orderQty}</TableData>
