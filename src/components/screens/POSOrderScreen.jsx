@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Truck, Barcode, ClipboardList, Package, DollarSign, X, CornerRightDown } from 'lucide-react';
+import { Truck, Barcode, ClipboardList, Package, DollarSign, X } from 'lucide-react';
 import { MOCK_ORDER_PRODUCTS, MOCK_SALE_ORDER_PRODUCTS } from '../../data/mockData';
 import MessageBox from '../common/MessageBox';
 import { TableHeader, TableData } from '../common/TableComponents';
@@ -44,7 +44,7 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
         }));
     };
     
-    // Handler to update the Barcode in the Picklist
+    // Handler to update the Barcode in the Picklist and auto-add when 10 digits entered
     const handleBarcodeChange = (sNo, value) => {
         setPicklistProducts(prev => prev.map(product => {
             if (product.sNo === sNo) {
@@ -52,6 +52,16 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
             }
             return product;
         }));
+
+        // Auto-add one pack when 10-digit barcode is entered
+        if (value.length === 10 && /^\d{10}$/.test(value)) {
+            const productToAdd = picklistProducts.find(p => p.sNo === sNo);
+            if (productToAdd) {
+                // Create a modified product with quantity 1
+                const productWithQty = { ...productToAdd, userQty: 1, barcode: value };
+                handleAddOneItem(productWithQty);
+            }
+        }
     };
 
     const handleReasonChange = (sNo, value) => {
@@ -110,7 +120,8 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
                     barcode: productToPick.barcode,
                     qty: qtyToAdd,
                     amount: qtyToAdd * productToPick.mrp,
-                    reason: 'N/A' 
+                    reason: 'N/A',
+                    status: 'PICKED' // Add status field for transfer screen
                 };
                 return [...prevInvoice, newInvoiceItem];
             }
@@ -236,7 +247,6 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
                                     <TableHeader>Req. Qty</TableHeader>
                                     <TableHeader>Pick Qty</TableHeader>
                                     <TableHeader>Reason</TableHeader>
-                                    <TableHeader>Action</TableHeader>
                                     <TableHeader>Pack</TableHeader>
                                     <TableHeader>Dt</TableHeader>
                                 </tr></thead>
@@ -289,14 +299,6 @@ const POSOrderScreen = ({ onExit, onContinue }) => {
                                                         <option value="Short">Short</option>
                                                         <option value="Damaged">Damaged</option>
                                                     </select>
-                                                </TableData>
-                                                <TableData>
-                                                    <button
-                                                        onClick={() => handleAddOneItem(product)}
-                                                        className="btn btn-success btn-sm rounded-3 shadow-sm d-flex align-items-center"
-                                                    >
-                                                        Add <CornerRightDown size={14} className='ms-1'/>
-                                                    </button>
                                                 </TableData>
                                                 <TableData>{product.pack}</TableData>
                                                 <TableData>{product.dt}</TableData>
