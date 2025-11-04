@@ -37,10 +37,10 @@ export const MOCK_ORDER_PRODUCTS = [
     },
     { sNo: 3, productName: 'PAN 40MG TAB', manufacturer: 'ALKEM LABORATORIES', batch: '25441154', pack: '15', mrp: 11.22, qty: 20, userQty: 20, amount: 224.40, barcode: '1122956000789',
       batches: [
-        { batchNo: '20240815', pack: '15' },
-        { batchNo: 'B4562024', pack: '10' },
-        { batchNo: 'DL23081507', pack: '15' },
-        { batchNo: 'ABC10010', pack: '20' }
+        { batchNo: 'P40MG001', pack: '15' },
+        { batchNo: 'P40MG002', pack: '10' },
+        { batchNo: 'P40MG003', pack: '15' },
+        { batchNo: 'P40MG004', pack: '20' }
       ]
     },
     { sNo: 4, productName: 'OKACET TAB', manufacturer: 'CIPLA', batch: '5850323', pack: '10', mrp: 2.14, qty: 10, userQty: 10, amount: 21.40, barcode: '1124845001234',

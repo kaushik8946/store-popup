@@ -185,7 +185,7 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
               ...p,
               qty: qtyRemaining,
               userQty: 0,
-              reason: 'N/A',
+              reason: 'None',
               barcode: '' // Reset barcode to empty
             }
             : p
@@ -324,9 +324,11 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
                         <TableData>
                           <input
                             type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             className="form-control form-control-sm rounded-3 bg-white border-dark border-opacity-25 fw-semibold text-primary"
                             value={product.barcode}
-                            onChange={(e) => handleBarcodeChange(product.sNo, e.target.value)}
+                            onChange={(e) => handleBarcodeChange(product.sNo, e.target.value.replace(/[^0-9]/g, ''))}
                             style={{width: '110px', cursor: (product.qty < parseInt(product.pack) || product.reason !== 'None') ? 'not-allowed' : 'text'}}
                             disabled={product.qty < parseInt(product.pack) || product.reason !== 'None'}
                             placeholder={product.reason === 'None' ? 'Scan here...' : ''}

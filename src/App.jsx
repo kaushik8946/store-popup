@@ -81,13 +81,12 @@ const App = () => {
   }, [requestData]);
 
   const handleContinueTransfer = useCallback((invoicedItems) => {
-    if (invoicedItems.length === 0 || !invoicedItems.some(item => item.reason === 'Damaged')) {
+    // Transfer only invoice products, excluding damaged products
+    if (invoicedItems.length === 0) {
       setContinueMessage('No products to transfer');
       return;
     }
-    // Only include products with reason 'None'
-    const filteredItems = invoicedItems.filter(item => item.reason === 'None');
-    setItemsToTransfer(filteredItems);
+    setItemsToTransfer(invoicedItems);
     setView('TRANSFER_SCREEN');
   }, []);
 
