@@ -9,6 +9,7 @@ import { TableHeader, TableData } from '../common/TableComponents';
  */
 const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessage }) => {
   // 1. Initialize State: Picklist starts with products 1, 2, and 3
+  // 1. Initialize State: Picklist starts with products 1, 2, and 3
   const initialPicklist = MOCK_ORDER_PRODUCTS.slice(0, 3).map(p => {
     // Find a batch where pack size divides qty evenly, otherwise use first batch
     let selectedBatchData = p.batches ? p.batches[0] : null;
@@ -36,6 +37,8 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
   const [picklistProducts, setPicklistProducts] = useState(initialPicklist);
   const [invoiceProducts, setInvoiceProducts] = useState(initialInvoice);
   const [message, setMessage] = useState(null);
+  // Disable all inputs if a popup is shown
+  const isPopupActive = Boolean(message) || Boolean(continueMessage);
 
   // Show continueMessage if present
   React.useEffect(() => {
@@ -90,7 +93,7 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
   const handleReasonChange = (sNo, value) => {
     setPicklistProducts(prev => prev.map(product => {
       if (product.sNo === sNo) {
-        return { ...product, reason: value };
+        return { ...product, reason: value, barcode: (value === 'Short' || value === 'Damaged') ? '' : product.barcode };
       }
       return product;
     }));
@@ -265,12 +268,12 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
                 <Barcode size={20} className="me-2 text-primary" /> Product Search
               </h3>
               <div className="d-grid gap-3">
-                <input type="text" placeholder="Barcode" className="form-control form-control-sm rounded-3" />
-                <input type="text" placeholder="Product ID" className="form-control form-control-sm rounded-3" />
-                <input type="text" placeholder="Search Batch / Composition here..." className="form-control form-control-sm rounded-3" />
+                <input type="text" placeholder="Barcode" className="form-control form-control-sm rounded-3" disabled={isPopupActive} />
+                <input type="text" placeholder="Product ID" className="form-control form-control-sm rounded-3" disabled={isPopupActive} />
+                <input type="text" placeholder="Search Batch / Composition here..." className="form-control form-control-sm rounded-3" disabled={isPopupActive} />
                 <div className="d-flex align-items-center pt-2">
                   <label className="form-label mb-0 small text-secondary fw-medium me-2">Quantity</label>
-                  <input type="number" defaultValue="1" min="1" className="form-control form-control-sm rounded-3 text-center" style={{ width: '60px' }} />
+                  <input type="number" defaultValue="1" min="1" className="form-control form-control-sm rounded-3 text-center" style={{ width: '60px' }} disabled={isPopupActive} />
                 </div>
               </div>
             </div>
@@ -315,6 +318,7 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
                             style={{width: '120px'}}
                             value={product.selectedBatch || product.batch}
                             onChange={(e) => handleBatchChange(product.sNo, e.target.value)}
+                            disabled={isPopupActive}
                           >
                             {MOCK_ORDER_PRODUCTS.find(p => p.sNo === product.sNo)?.batches?.map((batch, idx) => (
                               <option key={idx} value={batch.batchNo}>{batch.batchNo}</option>
@@ -329,20 +333,19 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
                             className="form-control form-control-sm rounded-3 bg-white border-dark border-opacity-25 fw-semibold text-primary"
                             value={product.barcode}
                             onChange={(e) => handleBarcodeChange(product.sNo, e.target.value.replace(/[^0-9]/g, ''))}
-                            style={{width: '110px', cursor: (product.qty < parseInt(product.pack) || product.reason !== 'None') ? 'not-allowed' : 'text'}}
-                            disabled={product.qty < parseInt(product.pack) || product.reason !== 'None'}
+                            style={{width: '110px', cursor: (product.qty < parseInt(product.pack) || product.reason !== 'None' || isPopupActive) ? 'not-allowed' : 'text'}}
+                            disabled={product.qty < parseInt(product.pack) || product.reason !== 'None' || isPopupActive}
                             placeholder={product.reason === 'None' ? 'Scan here...' : ''}
                           />
                         </TableData>
                         <TableData className='fw-semibold text-primary'>{product.qty}</TableData>
                         <TableData>
                           <select
-                            disabled={!isReasonRequired}
+                            disabled={!isReasonRequired || isPopupActive}
                             value={product.reason}
                             onChange={(e) => handleReasonChange(product.sNo, e.target.value)}
                             className={`form-select form-select-sm rounded-3 ${isReasonRequired ? 'bg-warning-subtle border-warning' : 'bg-light text-secondary'}`}
-                            style={{width: '120px'}}
-                          >
+                            style={{width: '120px'}}>
                             <option value="None">None</option>
                             <option value="Short">Short</option>
                             <option value="Damaged">Damaged</option>
@@ -470,7 +473,6 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
               </div>
               <div className='d-flex gap-2'>
                 <button className="btn btn-sm btn-primary">Submit Bounce/Indent</button>
-                <button className="btn btn-sm btn-info text-white" onClick={onExit}>Exit</button>
               </div>
             </div>
 
