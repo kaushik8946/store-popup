@@ -6,7 +6,7 @@ import { TableHeader, TableData } from '../common/TableComponents';
  * Transfer Screen (TO Screen)
  * This screen accepts transferProducts via props.
  */
-const TransferScreen = ({ onExit, transferItems, setView }) => {
+const TransferScreen = ({ onExit, transferItems, setView, onSubmit, transferType = 'Transfer Order', fromStoreName, fromStoreId, toStoreId }) => {
   const transferProducts = transferItems || [];
 
   // State to manage reasons for rejected items
@@ -16,9 +16,42 @@ const TransferScreen = ({ onExit, transferItems, setView }) => {
     transferType: 'Emergency',
     labId: '26010',
     jobId: 'NA/PH/2503/38',
-    fromStore: 'NAPHYSS0038A(PRT&A-OHS-HYD-INVENT)',
-    toStore: 'NAPHYSS0038A(PRT&A-OHS-HYD-INVENT)',
+    fromStore: fromStoreName || 'miyapur x-road',
+    toStore: toStoreId || transferProducts[0]?.destination || 'NAPHYSS0038A(PRT&A-OHS-HYD-INVENT)',
   };
+
+  // Helper to format strings like 'NAPHYSS0039R(RETURN-INVENTORY)' -> 'Return Inventory (NAPHYSS0039R)'
+  const formatStoreDisplay = (raw) => {
+    if (!raw || typeof raw !== 'string') return raw;
+    const m = raw.match(/^([^\(]+)\(([^\)]+)\)$/);
+    if (m) {
+      const id = m[1].trim();
+      const name = m[2].trim().replace(/[-_]/g, ' ').toLowerCase().split(' ').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+      return `${name} (${id})`;
+    }
+    // fallback: return as-is (or titlecase)
+    return raw.replace(/[-_]/g, ' ');
+  };
+
+  // Title-case a friendly store name like 'miyapur x-road' -> 'Miyapur X-Road'
+  const titleCaseName = (name) => {
+    if (!name || typeof name !== 'string') return name;
+    return name.split(/(\s|[-_])/).map(part => {
+      if (part.match(/\s|[-_]/)) return part;
+      return part.charAt(0).toUpperCase() + part.slice(1);
+    }).join('');
+  };
+
+  // Extract id from a raw id string like 'NAPHYSS0038A(PRT&A-OHS-HYD-INVENT)' -> 'NAPHYSS0038A'
+  const extractIdFromRaw = (raw) => {
+    if (!raw || typeof raw !== 'string') return '';
+    const idx = raw.indexOf('(');
+    if (idx > 0) return raw.substring(0, idx).trim();
+    return raw;
+  };
+
+  // Compose display for From store as 'Name (ID)'
+  const fromStoreDisplay = `${titleCaseName(transferDetails.fromStore)} (${extractIdFromRaw(fromStoreId || transferProducts[0]?.destination || '')})`;
 
   // Filter out rejected items from total calculation
   const totalTransferAmount = transferProducts
@@ -40,7 +73,7 @@ const TransferScreen = ({ onExit, transferItems, setView }) => {
   return (
     <div className="container-fluid p-3">
       <h2 className="fs-5 fw-bold text-dark mb-3 border-bottom pb-2 d-flex align-items-center">
-        <Truck size={24} className='me-2 text-primary' /> Transfer Screen
+        <Truck size={24} className='me-2 text-primary' /> {transferType}
       </h2>
 
       {/* Alert for Rejected Items */}
@@ -49,6 +82,25 @@ const TransferScreen = ({ onExit, transferItems, setView }) => {
           <AlertTriangle size={20} className="me-2 flex-shrink-0" />
           <div>
             <strong>Transfer Order Rejected.</strong> Please select a reason (Short/Damaged) for each rejected item before submitting.
+          </div>
+        </div>
+      )}
+      
+      {/* Alert for transfer type */}
+      {transferType.includes('Damaged') && (
+        <div className="alert alert-danger d-flex align-items-center mb-3 py-2" role="alert">
+          <Package size={20} className="me-2 flex-shrink-0" />
+          <div>
+            <strong>Damaged Items Transfer.</strong> These products will be transferred to Return Inventory.
+          </div>
+        </div>
+      )}
+      
+      {transferType.includes('Picked') && (
+        <div className="alert alert-success d-flex align-items-center mb-3 py-2" role="alert">
+          <Package size={20} className="me-2 flex-shrink-0" />
+          <div>
+            <strong>Picked Items Transfer.</strong> These products will be transferred to Sale Hub.
           </div>
         </div>
       )}
@@ -103,13 +155,13 @@ const TransferScreen = ({ onExit, transferItems, setView }) => {
                 <div>
                   <label className="form-label mb-1 text-secondary fw-medium small">From Store/Inventory</label>
                   <select className="form-select form-select-sm rounded-3">
-                    <option>{transferDetails.fromStore}</option>
+                    <option>{fromStoreDisplay}</option>
                   </select>
                 </div>
                 <div>
                   <label className="form-label mb-1 text-secondary fw-medium small">To Store/Inventory</label>
                   <select className="form-select form-select-sm rounded-3">
-                    <option>{transferDetails.toStore}</option>
+                    <option>{formatStoreDisplay(transferDetails.toStore)}</option>
                   </select>
                 </div>
               </div>
@@ -192,13 +244,20 @@ const TransferScreen = ({ onExit, transferItems, setView }) => {
           {/* Footer Actions */}
           <div className="d-flex justify-content-between align-items-center p-2 mt-3 bg-white rounded-3 border-top shadow-sm">
             <div className='d-flex gap-2'>
-              <button className="btn btn-sm btn-secondary">Remove Selected</button>
-              <button className="btn btn-sm btn-danger" onClick={onExit}>Clear</button>
-            </div>
+                <button className="btn btn-sm btn-secondary">Remove Selected</button>
+                <button className="btn btn-sm btn-outline-primary" onClick={() => { if (setView) setView('ORDER'); }}>Go Back</button>
+                <button className="btn btn-sm btn-danger" onClick={onExit}>Clear</button>
+              </div>
             <div className="d-flex align-items-center gap-3">
               <span className="small fw-semibold text-secondary">Total Transfer Value:</span>
               <span className="fs-5 fw-bolder text-danger">₹{totalTransferAmount}</span>
-              <button className="btn btn-success rounded-3 shadow">Submit</button>
+              <button className="btn btn-success rounded-3 shadow" onClick={() => {
+                if (onSubmit) {
+                  onSubmit();
+                } else if (setView) {
+                  setView('HOME');
+                }
+              }}>Submit</button>
             </div>
           </div>
         </div>

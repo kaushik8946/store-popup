@@ -481,7 +481,51 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
               <span className="fs-5 fw-bolder text-danger">₹{totalInvoiceAmount}</span>
               <button
                 className="btn btn-lg btn-success rounded-3 shadow"
-                onClick={() => onContinue(invoiceProducts)}
+                onClick={() => {
+                  // Validation: all products must be either Short, Damaged or Picked
+                  const pickedSNos = new Set(invoiceProducts.map(p => p.sNo));
+
+                  const invalidProducts = picklistProducts.filter(p => {
+                    // If product is already picked (present in invoice) it's OK
+                    if (pickedSNos.has(p.sNo)) return false;
+                    // Otherwise it must have a reason Short or Damaged
+                    return !(p.reason === 'Short' || p.reason === 'Damaged');
+                  });
+
+                  if (invalidProducts.length > 0) {
+                    setMessage('Pick all products or select reason');
+                    return;
+                  }
+
+                  // Collect all products: invoice products (picked) + picklist products that have a reason (Short/Damaged)
+                  const reasonedPicklist = picklistProducts
+                    .filter(p => p.reason === 'Short' || p.reason === 'Damaged')
+                    .map(p => ({
+                      sNo: p.sNo,
+                      productName: p.productName,
+                      manufacturer: p.manufacturer,
+                      pack: p.pack,
+                      batch: p.selectedBatch || p.batch,
+                      mrp: p.mrp,
+                      barcode: p.barcode,
+                      qty: p.qty,
+                      amount: p.qty * p.mrp,
+                      reason: p.reason,
+                      status: p.reason === 'Short' ? 'SHORT' : 'DAMAGED'
+                    }));
+
+                  const allProducts = [
+                    ...invoiceProducts,
+                    ...reasonedPicklist
+                  ];
+
+                  if (allProducts.length === 0) {
+                    setContinueMessage('No products to process');
+                    return;
+                  }
+
+                  onContinue(allProducts);
+                }}
               >
                 Continue
               </button>

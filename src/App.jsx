@@ -4,6 +4,7 @@ import TopBar from './components/layout/TopBar';
 import HomeView from './components/screens/HomeView';
 import POSOrderScreen from './components/screens/POSOrderScreen';
 import TransferScreen from './components/screens/TransferScreen';
+import InvoiceScreen from './components/screens/InvoiceScreen';
 import MiniFulfillmentNotification from './components/notifications/MiniFulfillmentNotification';
 
 // Load Bootstrap CSS and JS scripts
@@ -26,6 +27,13 @@ const App = () => {
   const [requestData, setRequestData] = useState(MOCK_TO_REQUEST);
   const [isNotificationActive, setIsNotificationActive] = useState(true);
   const [itemsToTransfer, setItemsToTransfer] = useState([]);
+  // Multi-step flow state
+  const [multiStep, setMultiStep] = useState({
+    step: null, // 'invoice' | 'transfer-damaged' | 'transfer-picked'
+    invoiceItems: [],
+    damagedItems: [],
+    pickedItems: [],
+  });
   const [continueMessage, setContinueMessage] = useState(null);
 
   // Derived states
@@ -80,15 +88,94 @@ const App = () => {
 
   }, [requestData]);
 
-  const handleContinueTransfer = useCallback((invoicedItems) => {
-    // Transfer only invoice products, excluding damaged products
-    if (invoicedItems.length === 0) {
-      setContinueMessage('No products to transfer');
-      return;
+  // Multi-step flow: after submit in POSOrderScreen
+  const handleContinueTransfer = useCallback((allProducts) => {
+    console.log('[DEBUG] All products received:', allProducts);
+    
+    // Split products by reason/status
+    const shortItems = allProducts.filter(p => p.reason === 'Short' || p.status === 'SHORT');
+    const damagedItems = allProducts.filter(p => p.reason === 'Damaged' || p.status === 'DAMAGED');
+    const pickedItems = allProducts.filter(p => (p.reason === 'None' || !p.reason) && p.status === 'PICKED');
+
+    console.log('[DEBUG] Short items:', shortItems.length, shortItems);
+    console.log('[DEBUG] Damaged items:', damagedItems.length, damagedItems);
+    console.log('[DEBUG] Picked items:', pickedItems.length, pickedItems);
+
+    // Always start with invoice step if there are short items
+    if (shortItems.length > 0) {
+      setMultiStep({
+        step: 'invoice',
+        invoiceItems: shortItems,
+        damagedItems,
+        pickedItems,
+      });
+      setView('INVOICE_SCREEN');
+    } else if (damagedItems.length > 0) {
+      // If no short items, go directly to damaged transfer
+      setMultiStep({
+        step: 'transfer-damaged',
+        invoiceItems: [],
+        damagedItems,
+        pickedItems,
+      });
+      setItemsToTransfer(damagedItems);
+      setView('TRANSFER_SCREEN');
+    } else if (pickedItems.length > 0) {
+      // If no short or damaged, go directly to picked transfer
+      setMultiStep({
+        step: 'transfer-picked',
+        invoiceItems: [],
+        damagedItems: [],
+        pickedItems,
+      });
+      setItemsToTransfer(pickedItems);
+      setView('TRANSFER_SCREEN');
+    } else {
+      setContinueMessage('No products to process');
     }
-    setItemsToTransfer(invoicedItems);
-    setView('TRANSFER_SCREEN');
   }, []);
+
+  // Handler for continuing from InvoiceScreen to next step
+  const handleInvoiceContinue = useCallback((invoice) => {
+    if (invoice) console.log('[SYSTEM] Invoice received in App:', invoice);
+    console.log('[DEBUG] Invoice continue - damaged:', multiStep.damagedItems.length, 'picked:', multiStep.pickedItems.length);
+    
+    if (multiStep.damagedItems.length > 0) {
+      setMultiStep(prev => ({ ...prev, step: 'transfer-damaged' }));
+      setItemsToTransfer(multiStep.damagedItems);
+      setView('TRANSFER_SCREEN');
+    } else if (multiStep.pickedItems.length > 0) {
+      setMultiStep(prev => ({ ...prev, step: 'transfer-picked' }));
+      setItemsToTransfer(multiStep.pickedItems);
+      setView('TRANSFER_SCREEN');
+    } else {
+      // No more steps, go to HOME
+      setView('HOME');
+      setRequestData(MOCK_TO_REQUEST);
+      setIsNotificationActive(true);
+      setMultiStep({ step: null, invoiceItems: [], damagedItems: [], pickedItems: [] });
+    }
+  }, [multiStep]);
+
+  // Handler for continuing from TransferScreen to next step
+  const handleTransferContinue = useCallback(() => {
+    console.log('[DEBUG] Transfer continue - step:', multiStep.step, 'picked items:', multiStep.pickedItems.length);
+    
+    if (multiStep.step === 'transfer-damaged' && multiStep.pickedItems.length > 0) {
+      // After damaged transfer, go to picked transfer
+      setMultiStep(prev => ({ ...prev, step: 'transfer-picked' }));
+      setItemsToTransfer(multiStep.pickedItems);
+      setView('TRANSFER_SCREEN');
+    } else {
+      // Always reset to HOME after last transfer step
+      console.log('[DEBUG] Resetting to HOME');
+      setView('HOME');
+      setRequestData(MOCK_TO_REQUEST);
+      setIsNotificationActive(true);
+      setItemsToTransfer([]);
+      setMultiStep({ step: null, invoiceItems: [], damagedItems: [], pickedItems: [] });
+    }
+  }, [multiStep]);
 
   const handleTransferComplete = useCallback((transferOrders) => {
     console.log('[SYSTEM] Transfer Orders Created:', transferOrders);
@@ -111,8 +198,44 @@ const App = () => {
     mainContent = <HomeView />;
   } else if (view === 'ORDER') {
     mainContent = <POSOrderScreen onExit={handleExitOrderScreen} onContinue={handleContinueTransfer} continueMessage={continueMessage} setContinueMessage={setContinueMessage} />;
+  } else if (view === 'INVOICE_SCREEN') {
+    mainContent = <InvoiceScreen invoiceItems={multiStep.invoiceItems} onContinue={handleInvoiceContinue} setView={setView} />;
+
   } else if (view === 'TRANSFER_SCREEN') {
-    mainContent = <TransferScreen onExit={handleExitOrderScreen} transferItems={itemsToTransfer} setView={setView} />;
+    // Show different transfer screens based on step
+    let transferItems = itemsToTransfer;
+
+    // Example inventory identifiers (same format as existing store string)
+    const fromStoreId = 'NAPHYSS0038A(PRT&A-OHS-HYD-INVENT)';
+    let toStoreId = fromStoreId;
+
+    // Attach full inventory ids as destination for transfer items
+    if (multiStep.step === 'transfer-damaged') {
+      toStoreId = 'NAPHYSS0039R(RETURN-INVENTORY)';
+      transferItems = itemsToTransfer.map(item => ({ 
+        ...item, 
+        destination: toStoreId,
+        transferType: 'Damaged Items'
+      }));
+    } else if (multiStep.step === 'transfer-picked') {
+      toStoreId = 'NAPHYSS0040S(SALE-HUB)';
+      transferItems = itemsToTransfer.map(item => ({ 
+        ...item, 
+        destination: toStoreId,
+        transferType: 'Picked Items'
+      }));
+    }
+
+    mainContent = <TransferScreen 
+      onExit={handleExitOrderScreen} 
+      transferItems={transferItems} 
+      setView={setView} 
+      onSubmit={handleTransferContinue}
+      transferType={multiStep.step === 'transfer-damaged' ? 'Damaged Items (Return Inventory)' : multiStep.step === 'transfer-picked' ? 'Picked Items (Sale Hub)' : 'Transfer Order'}
+  fromStoreName={'miyapur x-road'}
+  fromStoreId={fromStoreId}
+      toStoreId={toStoreId}
+    />;
   }
 
   return (
