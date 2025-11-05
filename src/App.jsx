@@ -5,8 +5,8 @@ import HomeView from './components/screens/HomeView';
 import POSOrderScreen from './components/screens/POSOrderScreen';
 import TransferScreen from './components/screens/TransferScreen';
 import InvoiceScreen from './components/screens/InvoiceScreen';
-import SummaryScreen from './components/screens/SummaryScreen';
 import MiniFulfillmentNotification from './components/notifications/MiniFulfillmentNotification';
+import MessageBox from './components/common/MessageBox';
 
 // Load Bootstrap CSS and JS scripts
 const BootstrapScripts = () => (
@@ -36,6 +36,7 @@ const App = () => {
     pickedItems: [],
   });
   const [summaryData, setSummaryData] = useState(null);
+  const [finalPopupData, setFinalPopupData] = useState(null);
   const [continueMessage, setContinueMessage] = useState(null);
 
   // Derived states
@@ -154,8 +155,14 @@ const App = () => {
       setItemsToTransfer(multiStep.pickedItems);
       setView('TRANSFER_SCREEN');
     } else {
-      // No more steps, go to SUMMARY
-      setView('SUMMARY');
+      // No more steps, go to HOME (nothing to transfer) - show popup if invoice exists
+      const popup = {};
+      if (invoice) {
+        popup.invoiceId = invoice.id;
+        popup.invoiceAmount = invoice.total;
+      }
+      setFinalPopupData(popup);
+      setView('HOME');
       setRequestData(MOCK_TO_REQUEST);
       setIsNotificationActive(true);
       setMultiStep({ step: null, invoiceItems: [], damagedItems: [], pickedItems: [] });
@@ -167,28 +174,43 @@ const App = () => {
     console.log('[DEBUG] Transfer continue - step:', multiStep.step, 'picked items:', multiStep.pickedItems.length);
     
     if (multiStep.step === 'transfer-damaged' && multiStep.pickedItems.length > 0) {
-      // After damaged transfer, go to picked transfer
+      // After damaged transfer, generate damaged transfer id and go to picked transfer
+      const damagedId = `TFR-D-${Date.now().toString().slice(-6)}`;
+      setSummaryData(prev => ({ ...(prev || {}), damagedTransferId: damagedId, damagedList: (prev?.damagedList ?? multiStep.damagedItems) }));
       setMultiStep(prev => ({ ...prev, step: 'transfer-picked' }));
       setItemsToTransfer(multiStep.pickedItems);
       setView('TRANSFER_SCREEN');
     } else {
-      // After last transfer step, go to SUMMARY
-      console.log('[DEBUG] Resetting to SUMMARY');
-      // capture summary lists and counts
+      // After last transfer step, generate picked transfer id and go HOME with final popup
+      const pickedId = `TFR-P-${Date.now().toString().slice(-6)}`;
+      // ensure damaged id captured if present
+      const damagedId = summaryData?.damagedTransferId || (multiStep.damagedItems.length > 0 ? `TFR-D-${(Date.now()+1).toString().slice(-6)}` : null);
+
       setSummaryData(prev => ({
         ...(prev || {}),
         damagedList: (prev?.damagedList ?? multiStep.damagedItems),
         pickedList: (prev?.pickedList ?? multiStep.pickedItems),
         damagedCount: (prev?.damagedCount ?? multiStep.damagedItems.length),
         pickedCount: (prev?.pickedCount ?? multiStep.pickedItems.length),
+        pickedTransferId: pickedId,
+        damagedTransferId: damagedId || prev?.damagedTransferId
       }));
-      setView('SUMMARY');
+
+      const popup = {
+        invoiceId: summaryData?.invoice?.id,
+        invoiceAmount: summaryData?.invoice?.total,
+        damagedTransferId: damagedId || summaryData?.damagedTransferId,
+        pickedTransferId: pickedId
+      };
+
+      setFinalPopupData(popup);
+      setView('HOME');
       setRequestData(MOCK_TO_REQUEST);
       setIsNotificationActive(true);
       setItemsToTransfer([]);
       setMultiStep({ step: null, invoiceItems: [], damagedItems: [], pickedItems: [] });
     }
-  }, [multiStep]);
+  }, [multiStep, summaryData]);
 
   const handleTransferComplete = useCallback((transferOrders) => {
     console.log('[SYSTEM] Transfer Orders Created:', transferOrders);
@@ -249,12 +271,6 @@ const App = () => {
   fromStoreId={fromStoreId}
       toStoreId={toStoreId}
     />;
-  } else if (view === 'SUMMARY') {
-    mainContent = <SummaryScreen data={summaryData} setView={setView} onDone={() => {
-      // clear summary and go home
-      setSummaryData(null);
-      setView('HOME');
-    }} />;
   }
 
   return (
@@ -268,7 +284,7 @@ const App = () => {
           {mainContent}
 
           {/* --- NOTIFICATION RENDERING (Skippable or Mandatory) --- */}
-          {isNotificationActive && view !== 'SUMMARY' && (
+          {isNotificationActive && !finalPopupData && (
             <div className={`position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center ${isMandatory ? 'bg-black bg-opacity-25' : ''}`} style={{ zIndex: 1040 }}>
               <MiniFulfillmentNotification
                 request={requestData}
@@ -278,6 +294,25 @@ const App = () => {
                 isMandatory={isMandatory}
               />
             </div>
+          )}
+
+          {/* Final popup after transfer completion (invoice + transfer ids) */}
+          {finalPopupData && (
+            <MessageBox
+              message={(
+                <div>
+                  <div className="mb-2"><strong>Invoice:</strong> {finalPopupData.invoiceId || 'N/A'}</div>
+                  <div className="mb-2"><strong>Amount:</strong> ₹{finalPopupData.invoiceAmount ?? 0}</div>
+                  <div className="mb-2 text-nowrap"><strong>Damaged Transfer ID:</strong> {finalPopupData.damagedTransferId || 'N/A'}</div>
+                  <div className="mb-0 text-nowrap"><strong>Picked Transfer ID:</strong> {finalPopupData.pickedTransferId || 'N/A'}</div>
+                </div>
+              )}
+              onClose={() => {
+                setFinalPopupData(null);
+                // allow notifications to resume after user closes the summary popup
+                setIsNotificationActive(true);
+              }}
+            />
           )}
         </main>
       </div>
