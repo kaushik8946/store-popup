@@ -83,9 +83,6 @@ const SummaryScreen = ({ data = {}, onDone, setView }) => {
         <button className="btn btn-outline-secondary" onClick={() => { if (setView) setView('HOME'); }}>
           Back to Home
         </button>
-        <button className="btn btn-primary" onClick={() => { if (onDone) onDone(); else if (setView) setView('HOME'); }}>
-          Done
-        </button>
       </div>
     </div>
   );
