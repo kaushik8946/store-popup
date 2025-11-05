@@ -47,7 +47,7 @@ const SummaryScreen = ({ data = {}, onDone, setView }) => {
       <div className="row g-3">
         <div className="col-lg-4">
           <div className="card shadow-sm border-0 rounded-3 p-3 h-100">
-            <h5 className="fs-6 fw-semibold">Short / Invoice</h5>
+            <h5 className="fs-6 fw-semibold">Short / Invoiced Items</h5>
             {invoice ? (
               <div className="mb-3">
                 <div className="small text-secondary">Invoice ID</div>
@@ -66,14 +66,14 @@ const SummaryScreen = ({ data = {}, onDone, setView }) => {
 
         <div className="col-lg-4">
           <div className="card shadow-sm border-0 rounded-3 p-3 h-100">
-            <h5 className="fs-6 fw-semibold">Damaged / Returned</h5>
+            <h5 className="fs-6 fw-semibold">Damaged Items</h5>
             {renderTable(damagedList)}
           </div>
         </div>
 
         <div className="col-lg-4">
           <div className="card shadow-sm border-0 rounded-3 p-3 h-100">
-            <h5 className="fs-6 fw-semibold">Picked / Sale Hub</h5>
+            <h5 className="fs-6 fw-semibold">Sale Items</h5>
             {renderTable(pickedList)}
           </div>
         </div>
