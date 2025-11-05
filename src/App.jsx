@@ -5,6 +5,7 @@ import HomeView from './components/screens/HomeView';
 import POSOrderScreen from './components/screens/POSOrderScreen';
 import TransferScreen from './components/screens/TransferScreen';
 import InvoiceScreen from './components/screens/InvoiceScreen';
+import SummaryScreen from './components/screens/SummaryScreen';
 import MiniFulfillmentNotification from './components/notifications/MiniFulfillmentNotification';
 
 // Load Bootstrap CSS and JS scripts
@@ -34,6 +35,7 @@ const App = () => {
     damagedItems: [],
     pickedItems: [],
   });
+  const [summaryData, setSummaryData] = useState(null);
   const [continueMessage, setContinueMessage] = useState(null);
 
   // Derived states
@@ -140,6 +142,9 @@ const App = () => {
     if (invoice) console.log('[SYSTEM] Invoice received in App:', invoice);
     console.log('[DEBUG] Invoice continue - damaged:', multiStep.damagedItems.length, 'picked:', multiStep.pickedItems.length);
     
+  // store invoice and current item lists for summary
+  if (invoice) setSummaryData(prev => ({ ...(prev || {}), invoice, shortList: multiStep.invoiceItems, damagedList: multiStep.damagedItems, pickedList: multiStep.pickedItems }));
+
     if (multiStep.damagedItems.length > 0) {
       setMultiStep(prev => ({ ...prev, step: 'transfer-damaged' }));
       setItemsToTransfer(multiStep.damagedItems);
@@ -149,8 +154,8 @@ const App = () => {
       setItemsToTransfer(multiStep.pickedItems);
       setView('TRANSFER_SCREEN');
     } else {
-      // No more steps, go to HOME
-      setView('HOME');
+      // No more steps, go to SUMMARY
+      setView('SUMMARY');
       setRequestData(MOCK_TO_REQUEST);
       setIsNotificationActive(true);
       setMultiStep({ step: null, invoiceItems: [], damagedItems: [], pickedItems: [] });
@@ -167,9 +172,17 @@ const App = () => {
       setItemsToTransfer(multiStep.pickedItems);
       setView('TRANSFER_SCREEN');
     } else {
-      // Always reset to HOME after last transfer step
-      console.log('[DEBUG] Resetting to HOME');
-      setView('HOME');
+      // After last transfer step, go to SUMMARY
+      console.log('[DEBUG] Resetting to SUMMARY');
+      // capture summary lists and counts
+      setSummaryData(prev => ({
+        ...(prev || {}),
+        damagedList: (prev?.damagedList ?? multiStep.damagedItems),
+        pickedList: (prev?.pickedList ?? multiStep.pickedItems),
+        damagedCount: (prev?.damagedCount ?? multiStep.damagedItems.length),
+        pickedCount: (prev?.pickedCount ?? multiStep.pickedItems.length),
+      }));
+      setView('SUMMARY');
       setRequestData(MOCK_TO_REQUEST);
       setIsNotificationActive(true);
       setItemsToTransfer([]);
@@ -236,6 +249,12 @@ const App = () => {
   fromStoreId={fromStoreId}
       toStoreId={toStoreId}
     />;
+  } else if (view === 'SUMMARY') {
+    mainContent = <SummaryScreen data={summaryData} setView={setView} onDone={() => {
+      // clear summary and go home
+      setSummaryData(null);
+      setView('HOME');
+    }} />;
   }
 
   return (
@@ -249,7 +268,7 @@ const App = () => {
           {mainContent}
 
           {/* --- NOTIFICATION RENDERING (Skippable or Mandatory) --- */}
-          {isNotificationActive && (
+          {isNotificationActive && view !== 'SUMMARY' && (
             <div className={`position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center ${isMandatory ? 'bg-black bg-opacity-25' : ''}`} style={{ zIndex: 1040 }}>
               <MiniFulfillmentNotification
                 request={requestData}
