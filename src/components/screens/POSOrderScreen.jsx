@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Truck, Barcode, ClipboardList, Package, DollarSign, X } from 'lucide-react';
+import { Truck, Barcode, ClipboardList, Package, DollarSign, X, AlertTriangle } from 'lucide-react';
 import { MOCK_ORDER_PRODUCTS, MOCK_SALE_ORDER_PRODUCTS } from '../../data/mockData';
 import MessageBox from '../common/MessageBox';
 import { TableHeader, TableData } from '../common/TableComponents';
@@ -36,6 +36,8 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
 
   const [picklistProducts, setPicklistProducts] = useState(initialPicklist);
   const [invoiceProducts, setInvoiceProducts] = useState(initialInvoice);
+  const [shortProductsState, setShortProductsState] = useState([]);
+  const [damagedProductsState, setDamagedProductsState] = useState([]);
   const [message, setMessage] = useState(null);
   // Disable all inputs if a popup is shown
   const isPopupActive = Boolean(message) || Boolean(continueMessage);
@@ -91,12 +93,25 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
   };
 
   const handleReasonChange = (sNo, value) => {
-    setPicklistProducts(prev => prev.map(product => {
-      if (product.sNo === sNo) {
-        return { ...product, reason: value, barcode: (value === 'Short' || value === 'Damaged') ? '' : product.barcode };
-      }
-      return product;
-    }));
+    // Move product out of picklist into short/damaged arrays when a reason is selected
+    const product = picklistProducts.find(p => p.sNo === sNo);
+    if (!product) return;
+
+    if (value === 'Short') {
+      // remove from picklist
+      setPicklistProducts(prev => prev.filter(p => p.sNo !== sNo));
+      // add to short list (preserve qty/mrp/batch)
+      setShortProductsState(prev => [...prev, { ...product, reason: 'Short', userQty: product.userQty || 0 }]);
+      return;
+    }
+
+    if (value === 'Damaged') {
+      setPicklistProducts(prev => prev.filter(p => p.sNo !== sNo));
+      setDamagedProductsState(prev => [...prev, { ...product, reason: 'Damaged', userQty: product.userQty || 0 }]);
+      return;
+    }
+
+    // If None selected, do nothing here (use explicit Clear/Remove action to move back)
   };
 
   const handleBatchChange = (sNo, batchNo) => {
@@ -247,7 +262,42 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
     setMessage(`${itemToRemove.productName} removed from invoice. ${removedQty} units returned to Picklist.`);
   };
 
+  // Clear reason/userQty for a picklist product (used to remove from Damaged/Short lists)
+  const handleClearReason = (sNo) => {
+    // If item is in short list, remove it and return to picklist
+    const fromShort = shortProductsState.find(p => p.sNo === sNo);
+    if (fromShort) {
+      setShortProductsState(prev => prev.filter(p => p.sNo !== sNo));
+      setPicklistProducts(prev => {
+        const restored = { ...fromShort, reason: 'None', userQty: 0, barcode: '' };
+        return [...prev, restored].sort((a, b) => a.sNo - b.sNo);
+      });
+      setMessage(`${fromShort.productName} restored to picklist.`);
+      return;
+    }
+
+    const fromDamaged = damagedProductsState.find(p => p.sNo === sNo);
+    if (fromDamaged) {
+      setDamagedProductsState(prev => prev.filter(p => p.sNo !== sNo));
+      setPicklistProducts(prev => {
+        const restored = { ...fromDamaged, reason: 'None', userQty: 0, barcode: '' };
+        return [...prev, restored].sort((a, b) => a.sNo - b.sNo);
+      });
+      setMessage(`${fromDamaged.productName} restored to picklist.`);
+      return;
+    }
+
+    // Fallback: ensure picklist has the item set to None if present
+    setPicklistProducts(prev => prev.map(p => (p.sNo === sNo ? { ...p, reason: 'None', userQty: 0, barcode: '' } : p)));
+    const prod = MOCK_ORDER_PRODUCTS.find(p => p.sNo === sNo);
+    setMessage(prod ? `${prod.productName} updated.` : 'Item updated.');
+  };
+
   const totalInvoiceAmount = invoiceProducts.reduce((sum, p) => sum + p.amount, 0).toFixed(2);
+
+  // Derived lists for display: damaged and short products (moved out of picklist)
+  const damagedProducts = damagedProductsState;
+  const shortProducts = shortProductsState;
 
   return (
     <div className="container-fluid py-3">
@@ -354,6 +404,11 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
                       </tr>
                     );
                   })}
+                  {picklistProducts.length === 0 && (
+                    <tr key="empty-picklist">
+                      <td colSpan="8" className="text-center py-3 text-secondary fst-italic">All Items picked</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -421,10 +476,10 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
         </div>
 
         <div className="col-lg-9 d-grid gap-4">
-          {/* Sale Order Products Table */}
+          {/* Damaged Products Table */}
           <div className="card shadow-sm border-0 rounded-3 overflow-hidden">
-            <h4 className="card-header p-2 small fw-bold bg-warning-subtle text-warning-emphasis border-0 d-flex align-items-center">
-              <DollarSign size={16} className="me-2" /> Sale Order Products (Customer Request)
+            <h4 className="card-header p-2 small fw-bold bg-danger-subtle text-danger border-0 d-flex align-items-center">
+              <AlertTriangle size={16} className="me-2" /> Damaged Products (To Return)
             </h4>
             <div className="card-body p-0 overflow-x-auto">
               <table className="table table-hover table-sm mb-0">
@@ -434,31 +489,83 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
                   <TableHeader>Manufacturer</TableHeader>
                   <TableHeader>Pack</TableHeader>
                   <TableHeader>Batch</TableHeader>
-                  <TableHeader>Order Qty</TableHeader>
-                  <TableHeader>Alternatives</TableHeader>
-                  <TableHeader>Suggestions</TableHeader>
-                  <TableHeader></TableHeader>
-                  <TableHeader className="text-center"></TableHeader>
+                  <TableHeader>Qty</TableHeader>
+                  <TableHeader>Remove</TableHeader>
                 </tr></thead>
                 <tbody>
-                  {MOCK_SALE_ORDER_PRODUCTS.map((product) => (
-                    <tr key={product.sNo}>
-                      <TableData>{product.sNo}</TableData>
+                  {damagedProducts.map((product, idx) => (
+                    <tr key={`dam-${product.sNo}-${idx}`}>
+                      <TableData>{idx + 1}</TableData>
                       <TableData className="fw-medium">{product.productName}</TableData>
                       <TableData>{product.manufacturer}</TableData>
-                      <TableData>-</TableData>
-                      <TableData>-</TableData>
-                      <TableData className='fw-semibold'>{product.orderQty}</TableData>
+                      <TableData>{product.pack}</TableData>
+                      <TableData>{product.selectedBatch || product.batch}</TableData>
+                      <TableData className='fw-semibold'>{product.userQty || product.qty}</TableData>
                       <TableData>
-                        <button className="btn btn-sm btn-info-subtle text-info rounded-3">Alternatives</button>
+                        <button
+                          onClick={() => handleClearReason(product.sNo)}
+                          className="btn btn-sm btn-danger-subtle text-danger rounded-3 shadow-sm d-flex align-items-center"
+                        >
+                          <X size={14} className='me-1' /> Remove
+                        </button>
                       </TableData>
-                      <TableData>
-                        <button className="btn btn-sm btn-info-subtle text-info rounded-3">Suggestions</button>
-                      </TableData>
-                      <TableData>-</TableData>
-                      <TableData></TableData>
                     </tr>
                   ))}
+                  {damagedProducts.length === 0 && (
+                    <tr key="empty-damaged">
+                      <td colSpan="7" className="text-center py-3 text-secondary fst-italic">No damaged items.</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Short Products Table */}
+          <div className="card shadow-sm border-0 rounded-3 overflow-hidden">
+            <h4 className="card-header p-2 small fw-bold bg-warning-subtle text-warning-emphasis border-0 d-flex align-items-center">
+              <DollarSign size={16} className="me-2" /> Short Products (Store Shortage)
+            </h4>
+            <div className="card-body p-0 overflow-x-auto">
+              <table className="table table-hover table-sm mb-0">
+                <thead><tr>
+                  <TableHeader>S.No</TableHeader>
+                  <TableHeader>Product Name</TableHeader>
+                  <TableHeader>Manufacturer</TableHeader>
+                  <TableHeader>Pack</TableHeader>
+                  <TableHeader>Batch</TableHeader>
+                  <TableHeader>Qty</TableHeader>
+                  <TableHeader>Amount</TableHeader>
+                  <TableHeader>Remove</TableHeader>
+                </tr></thead>
+                <tbody>
+                  {shortProducts.map((product, idx) => (
+                    <tr key={`short-${product.sNo}-${idx}`}>
+                      <TableData>{idx + 1}</TableData>
+                      <TableData className="fw-medium">{product.productName}</TableData>
+                      <TableData>{product.manufacturer}</TableData>
+                      <TableData>{product.pack}</TableData>
+                      <TableData>{product.selectedBatch || product.batch}</TableData>
+                      <TableData className='fw-semibold text-warning'>
+                        {/* allow short qty editing inline if desired in future; for now display stored userQty or qty */}
+                        {product.userQty || product.qty || 0}
+                      </TableData>
+                      <TableData className='fw-bold text-danger'>₹{(((product.userQty || product.qty || 0) * (product.mrp || 0))).toFixed(2)}</TableData>
+                      <TableData>
+                        <button
+                          onClick={() => handleClearReason(product.sNo)}
+                          className="btn btn-sm btn-danger-subtle text-danger rounded-3 shadow-sm d-flex align-items-center"
+                        >
+                          <X size={14} className='me-1' /> Remove
+                        </button>
+                      </TableData>
+                    </tr>
+                  ))}
+                  {shortProducts.length === 0 && (
+                    <tr key="empty-short">
+                      <td colSpan="8" className="text-center py-3 text-secondary fst-italic">No short items.</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -498,21 +605,23 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
                   }
 
                   // Collect all products: invoice products (picked) + picklist products that have a reason (Short/Damaged)
-                  const reasonedPicklist = picklistProducts
-                    .filter(p => p.reason === 'Short' || p.reason === 'Damaged')
-                    .map(p => ({
-                      sNo: p.sNo,
-                      productName: p.productName,
-                      manufacturer: p.manufacturer,
-                      pack: p.pack,
-                      batch: p.selectedBatch || p.batch,
-                      mrp: p.mrp,
-                      barcode: p.barcode,
-                      qty: p.qty,
-                      amount: p.qty * p.mrp,
-                      reason: p.reason,
-                      status: p.reason === 'Short' ? 'SHORT' : 'DAMAGED'
-                    }));
+                  // Collect reasoned products from the dedicated short/damaged states
+                  const reasonedPicklist = [
+                    ...shortProductsState,
+                    ...damagedProductsState
+                  ].map(p => ({
+                    sNo: p.sNo,
+                    productName: p.productName,
+                    manufacturer: p.manufacturer,
+                    pack: p.pack,
+                    batch: p.selectedBatch || p.batch,
+                    mrp: p.mrp,
+                    barcode: p.barcode,
+                    qty: p.qty,
+                    amount: p.qty * p.mrp,
+                    reason: p.reason,
+                    status: p.reason === 'Short' ? 'SHORT' : 'DAMAGED'
+                  }));
 
                   const allProducts = [
                     ...invoiceProducts,
