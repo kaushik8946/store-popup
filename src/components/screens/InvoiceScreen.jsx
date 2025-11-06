@@ -63,7 +63,6 @@ const InvoiceScreen = ({ invoiceItems = [], onContinue, setView }) => {
               <TableHeader>MRP</TableHeader>
               <TableHeader>Qty</TableHeader>
               <TableHeader>Amount</TableHeader>
-              <TableHeader>Barcode</TableHeader>
             </tr></thead>
             <tbody>
               {invoiceItems.map((product, index) => (
@@ -76,12 +75,11 @@ const InvoiceScreen = ({ invoiceItems = [], onContinue, setView }) => {
                   <TableData>₹{product.mrp.toFixed(2)}</TableData>
                   <TableData className='fw-semibold'>{product.qty}</TableData>
                   <TableData className='fw-bold text-danger'>₹{product.amount.toFixed(2)}</TableData>
-                  <TableData>{product.barcode}</TableData>
                 </tr>
               ))}
               {invoiceItems.length === 0 && (
                 <tr key="empty-invoice">
-                  <td colSpan="9" className="text-center py-3 text-secondary fst-italic">
+                  <td colSpan="8" className="text-center py-3 text-secondary fst-italic">
                     No items to invoice for "Short" reason.
                   </td>
                 </tr>

@@ -27,7 +27,7 @@ export const MOCK_ORDER_PRODUCTS = [
         { batchNo: '20240901', pack: '20' }
       ]
     },
-    { sNo: 2, productName: 'ECOSPRIN 75MG TAB', manufacturer: 'USV PVT LTD', batch: '25441154', pack: '10', mrp: 0.40, qty: 20, userQty: 20, amount: 8.00, barcode: '1122956000456',
+    { sNo: 2, productName: 'ECOSPRIN 75MG TAB', manufacturer: 'USV PVT LTD', batch: '25441154', pack: '10', mrp: 3.30, qty: 20, userQty: 20, amount: 8.00, barcode: '1122956000456',
       batches: [
         { batchNo: 'A123B456', pack: '10' },
         { batchNo: 'A124B457', pack: '15' },
