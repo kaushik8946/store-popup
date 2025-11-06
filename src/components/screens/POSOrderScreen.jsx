@@ -157,9 +157,21 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
       return;
     }
 
-    // --- 1. Update the Invoice Products (Increment existing or add new) ---
+    // --- 1. Update the Invoice Products (Increment existing or add new)
     setInvoiceProducts(prevInvoice => {
-      const existingIndex = prevInvoice.findIndex(p => p.sNo === productToPick.sNo);
+      // If productToPick has a barcode, treat same sNo + different barcode as separate items.
+      const barcode = (productToPick.barcode || '').toString();
+      let existingIndex = -1;
+
+      if (barcode) {
+        existingIndex = prevInvoice.findIndex(p => p.sNo === productToPick.sNo && (p.barcode || '') === barcode);
+      } else {
+        // No barcode: merge with any existing invoice item having same sNo and no barcode, or first matching sNo
+        existingIndex = prevInvoice.findIndex(p => p.sNo === productToPick.sNo && !(p.barcode));
+        if (existingIndex === -1) {
+          existingIndex = prevInvoice.findIndex(p => p.sNo === productToPick.sNo);
+        }
+      }
 
       if (existingIndex > -1) {
         return prevInvoice.map((p, index) => {
@@ -223,8 +235,9 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
   const handleRemoveItem = (itemToRemove) => {
     const removedQty = itemToRemove.qty;
 
+    // Remove invoice row matching both sNo and barcode (if barcode present)
     setInvoiceProducts(prevInvoice =>
-      prevInvoice.filter(p => p.sNo !== itemToRemove.sNo)
+      prevInvoice.filter(p => !(p.sNo === itemToRemove.sNo && (p.barcode || '') === (itemToRemove.barcode || '')))
     );
 
     setPicklistProducts(prevPicklist => {
@@ -294,6 +307,16 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
   };
 
   const totalInvoiceAmount = invoiceProducts.reduce((sum, p) => sum + p.amount, 0).toFixed(2);
+
+  // Reset the order: restore the initial picklist and clear invoice/short/damaged lists
+  const handleResetOrder = () => {
+    setPicklistProducts(initialPicklist.map(p => ({ ...p, userQty: 0, reason: 'None', barcode: '' })));
+    setInvoiceProducts([]);
+    setShortProductsState([]);
+    setDamagedProductsState([]);
+    setMessage(null);
+    setContinueMessage && setContinueMessage(null);
+  };
 
   // Derived lists for display: damaged and short products (moved out of picklist)
   const damagedProducts = damagedProductsState;
@@ -425,7 +448,7 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
                   <TableHeader>S.No</TableHeader>
                   <TableHeader>Product Name</TableHeader>
                   <TableHeader>Manufacturer</TableHeader>
-                  <TableHeader>Pack</TableHeader>
+                  <TableHeader>Pack Size</TableHeader>
                   <TableHeader>Batch</TableHeader>
                   <TableHeader>MRP</TableHeader>
                   <TableHeader>Qty</TableHeader>
@@ -435,7 +458,7 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
                 </tr></thead>
                 <tbody>
                   {invoiceProducts.map((product, index) => (
-                    <tr key={`${product.sNo}-${index}`}>
+                    <tr key={`${product.sNo}-${product.barcode || index}`}>
                       <TableData>{index + 1}</TableData>
                       <TableData className="fw-medium">{product.productName}</TableData>
                       <TableData>{product.manufacturer}</TableData>
@@ -487,7 +510,7 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
                   <TableHeader>S.No</TableHeader>
                   <TableHeader>Product Name</TableHeader>
                   <TableHeader>Manufacturer</TableHeader>
-                  <TableHeader>Pack</TableHeader>
+                  <TableHeader>Pack Size</TableHeader>
                   <TableHeader>Batch</TableHeader>
                   <TableHeader>Qty</TableHeader>
                   <TableHeader>Remove</TableHeader>
@@ -532,7 +555,7 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
                   <TableHeader>S.No</TableHeader>
                   <TableHeader>Product Name</TableHeader>
                   <TableHeader>Manufacturer</TableHeader>
-                  <TableHeader>Pack</TableHeader>
+                  <TableHeader>Pack Size</TableHeader>
                   <TableHeader>Batch</TableHeader>
                   <TableHeader>Qty</TableHeader>
                   <TableHeader>Amount</TableHeader>
@@ -573,15 +596,7 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
 
           {/* Footer Actions and Totals */}
           <div className="d-flex flex-column flex-sm-row justify-content-between align-items-center p-3 bg-white rounded-3 border-top shadow">
-            <div className='d-flex flex-column gap-2 mb-3 mb-sm-0'>
-              <div className='d-flex gap-2'>
-                <button className="btn btn-sm btn-secondary">Reset</button>
-                <button className="btn btn-sm btn-danger d-flex align-items-center">E-Prescription</button>
-              </div>
-              <div className='d-flex gap-2'>
-                <button className="btn btn-sm btn-primary">Submit Bounce/Indent</button>
-              </div>
-            </div>
+            {/* Left action buttons removed per request (Reset / E-Prescription / Submit Bounce/Indent) */}
 
             <div className="d-flex align-items-center gap-3">
               <span className="small fw-semibold text-secondary">Total Invoice Amount:</span>
@@ -637,6 +652,14 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
                 }}
               >
                 Continue
+              </button>
+              <button
+                className="btn btn-lg btn-outline-secondary rounded-3 shadow"
+                onClick={handleResetOrder}
+                disabled={isPopupActive}
+                style={{ marginLeft: '0.5rem' }}
+              >
+                Reset
               </button>
             </div>
           </div>
