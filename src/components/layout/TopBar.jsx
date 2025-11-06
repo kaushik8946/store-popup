@@ -1,5 +1,6 @@
 import React from 'react';
 import { DollarSign, Truck, ClipboardList, Home, FileText, Package } from 'lucide-react';
+import medplusLogo from '../../assets/medplus_logo.png';
 
 const TopBar = ({ view, setView }) => {
   const currentTime = new Date().toLocaleTimeString('en-US', {
@@ -15,11 +16,11 @@ const TopBar = ({ view, setView }) => {
   return (
     <header className="d-flex align-items-center bg-danger shadow-sm" style={{ height: '56px', minHeight: '56px', maxHeight: '56px' }}>
       {/* Left Section: Logo */}
-      <div className="d-flex align-items-center px-4 h-100">
+      <div className="d-flex align-items-center h-100">
         <img
-          src="https://www.medplusindia.com/images/medplus_logo.png"
+          src={medplusLogo}
           alt="MedPlus Pharmacy Logo"
-          style={{ height: '26px' }}
+          style={{ height: '45px', marginLeft: '16px' }}
         />
       </div>
 
@@ -77,7 +78,7 @@ const TopBar = ({ view, setView }) => {
       </nav>
 
       {/* Right Section: Time */}
-      <div className="d-flex align-items-center gap-3 px-4 h-100">
+      <div className="d-flex align-items-center gap-3 h-100 pe-4">
         <div className="d-flex align-items-center gap-2 text-white fw-medium" style={{ fontSize: '0.9rem' }}>
           <span>{currentDate}</span>
           <span>•</span>

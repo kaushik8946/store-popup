@@ -26,7 +26,7 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
       userQty: 0, // Start with 0 picked quantity (Input is for user entry)
       reason: 'None', // Default reason
       barcode: '', // Start with empty barcode
-      selectedBatch: selectedBatchData ? selectedBatchData.batchNo : p.batch, // Default to divisible batch
+      selectedBatch: selectedBatchData ? selectedBatchData.batchNo : (p.batches && p.batches[0] ? p.batches[0].batchNo : ''), // Default to divisible batch or first batch
       pack: selectedBatchData ? selectedBatchData.pack : p.pack // Default to divisible batch's pack size
     };
   });
@@ -159,18 +159,24 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
 
     // --- 1. Update the Invoice Products (Increment existing or add new)
     setInvoiceProducts(prevInvoice => {
-      // If productToPick has a barcode, treat same sNo + different barcode as separate items.
+      // Determine unique identity for invoice rows so that same product added
+      // with different barcodes or different batch numbers are treated as separate rows.
       const barcode = (productToPick.barcode || '').toString();
+      const batch = productToPick.selectedBatch || '';
       let existingIndex = -1;
 
+      // Priority matching: barcode (if present) -> batch (if present) -> a row with same sNo and no barcode/batch
       if (barcode) {
-        existingIndex = prevInvoice.findIndex(p => p.sNo === productToPick.sNo && (p.barcode || '') === barcode);
-      } else {
-        // No barcode: merge with any existing invoice item having same sNo and no barcode, or first matching sNo
-        existingIndex = prevInvoice.findIndex(p => p.sNo === productToPick.sNo && !(p.barcode));
-        if (existingIndex === -1) {
-          existingIndex = prevInvoice.findIndex(p => p.sNo === productToPick.sNo);
-        }
+        existingIndex = prevInvoice.findIndex(p => p.sNo === productToPick.sNo && (p.barcode || '') === barcode && (p.batch || '') === batch);
+      }
+
+      if (existingIndex === -1 && batch) {
+        existingIndex = prevInvoice.findIndex(p => p.sNo === productToPick.sNo && (p.batch || '') === batch && !(p.barcode));
+      }
+
+      if (existingIndex === -1 && !barcode && !batch) {
+        // Only merge into a row with no barcode and no batch if current item also has no barcode and no batch
+        existingIndex = prevInvoice.findIndex(p => p.sNo === productToPick.sNo && !(p.barcode) && !(p.batch));
       }
 
       if (existingIndex > -1) {
@@ -192,7 +198,7 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
           productName: productToPick.productName,
           manufacturer: productToPick.manufacturer,
           pack: productToPick.pack,
-          batch: productToPick.batch,
+          batch: productToPick.selectedBatch || '',
           mrp: productToPick.mrp,
           barcode: productToPick.barcode,
           qty: qtyToAdd,
@@ -235,9 +241,18 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
   const handleRemoveItem = (itemToRemove) => {
     const removedQty = itemToRemove.qty;
 
-    // Remove invoice row matching both sNo and barcode (if barcode present)
+    // Remove invoice row matching by sNo and barcode or batch (if present)
     setInvoiceProducts(prevInvoice =>
-      prevInvoice.filter(p => !(p.sNo === itemToRemove.sNo && (p.barcode || '') === (itemToRemove.barcode || '')))
+      prevInvoice.filter(p => {
+        if (p.sNo !== itemToRemove.sNo) return true;
+        const barcodeMatch = (itemToRemove.barcode || '') !== '' && (p.barcode || '') === (itemToRemove.barcode || '');
+        const batchMatch = (itemToRemove.batch || '') !== '' && (p.batch || '') === (itemToRemove.batch || '');
+        // If invoice row matches barcode or batch, filter it out
+        if (barcodeMatch || batchMatch) return false;
+        // If neither barcode nor batch provided on the removed item, remove rows that also lack barcode and batch
+        if (!(itemToRemove.barcode || itemToRemove.batch) && !(p.barcode || p.batch)) return false;
+        return true;
+      })
     );
 
     setPicklistProducts(prevPicklist => {
@@ -250,7 +265,8 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
               ...p,
               qty: p.qty + removedQty,
               userQty: 0,
-              reason: 'None'
+              reason: 'None',
+              barcode: '' // ensure barcode is not repopulated when returning from invoice
             };
           }
           return p;
@@ -264,7 +280,8 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
           ...originalProduct,
           qty: removedQty,
           userQty: 0,
-          reason: 'None'
+          reason: 'None',
+          barcode: '' // do not populate barcode when restoring to picklist
         };
 
         const newPicklist = [...prevPicklist, newProduct].sort((a, b) => a.sNo - b.sNo);
@@ -629,7 +646,7 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
                     productName: p.productName,
                     manufacturer: p.manufacturer,
                     pack: p.pack,
-                    batch: p.selectedBatch || p.batch,
+                    batch: p.selectedBatch || '',
                     mrp: p.mrp,
                     barcode: p.barcode,
                     qty: p.qty,

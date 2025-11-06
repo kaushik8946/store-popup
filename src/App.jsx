@@ -174,37 +174,59 @@ const App = () => {
     console.log('[DEBUG] Transfer continue - step:', multiStep.step, 'picked items:', multiStep.pickedItems.length);
     console.log('[DEBUG] Item reasons received:', itemReasons);
     
-    // Count how many items are marked as "Damaged" in the reasons
-    const damagedCount = Object.values(itemReasons).filter(reason => reason === 'Damaged').length;
-    console.log('[DEBUG] Items marked as Damaged:', damagedCount);
+    // Count damaged items from multiple sources:
+    // 1. Items already categorized as damaged from POS screen (stored in multiStep.damagedItems)
+    // 2. Items where user selected "Damaged" in itemReasons (for REJECTED items - currently not used since UI removed)
+    // 3. Previously stored damaged count from earlier steps
+    
+    const rejectedItemsMarkedAsDamaged = Object.values(itemReasons).filter(reason => reason === 'Damaged').length;
+    
+    // Count already damaged items - check multiStep.damagedItems regardless of current step
+    // because damaged items are set during initial categorization and persist across steps
+    const alreadyDamagedItems = multiStep.damagedItems?.length || 0;
+    
+    // Consider previously saved damaged count from earlier transfer steps
+    const previouslyCountedDamaged = summaryData?.damagedCount || 0;
+    
+    // Total damaged count is the max of:
+    // - Current step's damaged items + rejected items marked as damaged
+    // - Previously counted damaged items (to handle multi-step scenarios)
+    const currentStepDamagedCount = rejectedItemsMarkedAsDamaged + alreadyDamagedItems;
+    const totalDamagedCount = Math.max(currentStepDamagedCount, previouslyCountedDamaged);
+    
+    console.log('[DEBUG] Already damaged items:', alreadyDamagedItems);
+    console.log('[DEBUG] Rejected items marked as Damaged:', rejectedItemsMarkedAsDamaged);
+    console.log('[DEBUG] Previously counted damaged:', previouslyCountedDamaged);
+    console.log('[DEBUG] Total damaged count:', totalDamagedCount);
     
     if (multiStep.step === 'transfer-damaged' && multiStep.pickedItems.length > 0) {
-      // After damaged transfer, generate damaged transfer id ONLY if items were marked as damaged
-      const damagedId = damagedCount > 0 ? `TFR-D-${Date.now().toString().slice(-6)}` : null;
+      // After damaged transfer, generate damaged transfer id ONLY if there are damaged items
+      const damagedId = totalDamagedCount > 0 ? `TFR-D-${Date.now().toString().slice(-6)}` : null;
       setSummaryData(prev => ({ 
         ...(prev || {}), 
         ...(damagedId ? { damagedTransferId: damagedId } : {}),
         damagedList: (prev?.damagedList ?? multiStep.damagedItems),
-        damagedCount: damagedCount
+        damagedCount: totalDamagedCount
       }));
       setMultiStep(prev => ({ ...prev, step: 'transfer-picked' }));
       setItemsToTransfer(multiStep.pickedItems);
       setView('TRANSFER_SCREEN');
     } else {
       // After last transfer step, generate transfer ids only for non-empty lists and go HOME with final popup
-  const hasPicked = multiStep.pickedItems.length > 0;
-  // Only consider damaged present if items were actually marked as "Damaged"
-  const hasDamaged = damagedCount > 0 || (summaryData?.damagedCount && summaryData.damagedCount > 0);
+      const hasPicked = multiStep.pickedItems.length > 0;
+      // Only consider damaged present if items were actually marked as "Damaged"
+      const hasDamaged = totalDamagedCount > 0;
 
-  const pickedId = hasPicked ? `TFR-P-${Date.now().toString().slice(-6)}` : null;
-  // ensure damaged id captured only when damaged items exist
-  const damagedId = hasDamaged ? (summaryData?.damagedTransferId || (damagedCount > 0 ? `TFR-D-${(Date.now()+1).toString().slice(-6)}` : null)) : null;
+      const pickedId = hasPicked ? `TFR-P-${Date.now().toString().slice(-6)}` : null;
+      // ensure damaged id captured only when damaged items exist
+      // Use existing damagedTransferId if already generated, otherwise generate new one
+      const damagedId = hasDamaged ? (summaryData?.damagedTransferId || `TFR-D-${(Date.now()+1).toString().slice(-6)}`) : null;
 
       setSummaryData(prev => ({
         ...(prev || {}),
         damagedList: (prev?.damagedList ?? multiStep.damagedItems),
         pickedList: (prev?.pickedList ?? multiStep.pickedItems),
-        damagedCount: Math.max(damagedCount, prev?.damagedCount || 0),
+        damagedCount: totalDamagedCount,
         pickedCount: (prev?.pickedCount ?? multiStep.pickedItems.length),
         ...(pickedId ? { pickedTransferId: pickedId } : {}),
         ...(damagedId ? { damagedTransferId: damagedId } : {})
@@ -213,7 +235,7 @@ const App = () => {
       const popup = {};
       if (summaryData?.invoice?.id) popup.invoiceId = summaryData.invoice.id;
       if (summaryData?.invoice?.total) popup.invoiceAmount = summaryData.invoice.total;
-  if (damagedId) popup.damagedTransferId = damagedId;
+      if (damagedId) popup.damagedTransferId = damagedId;
       if (pickedId) popup.pickedTransferId = pickedId;
 
       setFinalPopupData(popup);
