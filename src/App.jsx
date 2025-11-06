@@ -301,10 +301,21 @@ const App = () => {
             <MessageBox
               message={(
                 <div>
-                  <div className="mb-2"><strong>Invoice:</strong> {finalPopupData.invoiceId || 'N/A'}</div>
-                  <div className="mb-2"><strong>Amount:</strong> ₹{finalPopupData.invoiceAmount ?? 0}</div>
-                  <div className="mb-2 text-nowrap"><strong>Damaged Transfer ID:</strong> {finalPopupData.damagedTransferId || 'N/A'}</div>
-                  <div className="mb-0 text-nowrap"><strong>Picked Transfer ID:</strong> {finalPopupData.pickedTransferId || 'N/A'}</div>
+                  {finalPopupData.invoiceId && (
+                    <div className="mb-2"><strong>Invoice:</strong> {finalPopupData.invoiceId}</div>
+                  )}
+
+                  {typeof finalPopupData.invoiceAmount !== 'undefined' && finalPopupData.invoiceAmount !== null && (
+                    <div className="mb-2"><strong>Amount:</strong> ₹{finalPopupData.invoiceAmount}</div>
+                  )}
+
+                  {finalPopupData.damagedTransferId && (
+                    <div className="mb-2 text-nowrap"><strong>Damaged Transfer ID:</strong> {finalPopupData.damagedTransferId}</div>
+                  )}
+
+                  {finalPopupData.pickedTransferId && (
+                    <div className="mb-0 text-nowrap"><strong>Picked Transfer ID:</strong> {finalPopupData.pickedTransferId}</div>
+                  )}
                 </div>
               )}
               onClose={() => {
