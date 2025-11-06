@@ -119,8 +119,8 @@ const App = () => {
     if (invoice) console.log('[SYSTEM] Invoice received in App:', invoice);
     console.log('[DEBUG] Invoice continue - damaged:', multiStep.damagedItems.length, 'picked:', multiStep.pickedItems.length);
     
-  // store invoice and current item lists for summary
-  if (invoice) setSummaryData(prev => ({ ...(prev || {}), invoice, shortList: multiStep.invoiceItems, damagedList: multiStep.damagedItems, pickedList: multiStep.pickedItems }));
+  // store invoice and current item lists for summary (only from THIS order)
+  if (invoice) setSummaryData({ invoice, shortList: multiStep.invoiceItems, damagedList: multiStep.damagedItems, pickedList: multiStep.pickedItems });
 
     if (multiStep.damagedItems.length > 0) {
       setMultiStep(prev => ({ ...prev, step: 'transfer-damaged' }));
@@ -158,12 +158,12 @@ const App = () => {
     if (multiStep.step === 'transfer-damaged' && multiStep.pickedItems.length > 0) {
       // After damaged transfer, generate damaged transfer id ONLY if there are damaged items
       const damagedId = damagedCount > 0 ? `TFR-D-${Date.now().toString().slice(-6)}` : null;
-      setSummaryData(prev => ({ 
-        ...(prev || {}), 
+      setSummaryData({ 
+        ...(summaryData || {}), 
         ...(damagedId ? { damagedTransferId: damagedId } : {}),
         damagedList: multiStep.damagedItems,
         damagedCount: damagedCount
-      }));
+      });
       setMultiStep(prev => ({ ...prev, step: 'transfer-picked' }));
       setItemsToTransfer(multiStep.pickedItems);
       setView('TRANSFER_SCREEN');
@@ -175,15 +175,15 @@ const App = () => {
       const pickedId = hasPicked ? `TFR-P-${Date.now().toString().slice(-6)}` : null;
       const damagedId = hasDamaged ? (summaryData?.damagedTransferId || `TFR-D-${(Date.now()+1).toString().slice(-6)}`) : null;
 
-      setSummaryData(prev => ({
-        ...(prev || {}),
+      setSummaryData({
+        ...(summaryData || {}),
         damagedList: multiStep.damagedItems,
         pickedList: multiStep.pickedItems,
         damagedCount: damagedCount,
         pickedCount: multiStep.pickedItems.length,
         ...(pickedId ? { pickedTransferId: pickedId } : {}),
         ...(damagedId ? { damagedTransferId: damagedId } : {})
-      }));
+      });
 
       const popup = {};
       if (summaryData?.invoice?.id) popup.invoiceId = summaryData.invoice.id;
@@ -197,6 +197,7 @@ const App = () => {
       setIsNotificationActive(true);
       setItemsToTransfer([]);
       setMultiStep({ step: null, invoiceItems: [], damagedItems: [], pickedItems: [] });
+      setSummaryData(null); // Clear all summary data
     }
   }, [multiStep, summaryData]);
 
@@ -307,6 +308,7 @@ const App = () => {
               )}
               onClose={() => {
                 setFinalPopupData(null);
+                setSummaryData(null); // Clear all summary data when popup is closed
                 // allow notifications to resume after user closes the summary popup
                 setIsNotificationActive(true);
               }}
