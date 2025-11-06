@@ -62,6 +62,9 @@ const TransferScreen = ({ onExit, transferItems, setView, onSubmit, transferType
   // Check if there are any rejected items
   const hasRejectedItems = transferProducts.some(p => p.status === 'REJECTED/BOUNCED');
 
+  // Check if any items are marked as "Damaged"
+  const hasDamagedItems = Object.values(itemReasons).some(reason => reason === 'Damaged');
+
   // Handle reason change for rejected items
   const handleReasonChange = (sNo, reason) => {
     setItemReasons(prev => ({
@@ -87,7 +90,7 @@ const TransferScreen = ({ onExit, transferItems, setView, onSubmit, transferType
       )}
       
       {/* Alert for transfer type */}
-      {transferType.includes('Damaged') && (
+      {transferType.includes('Damaged') && hasDamagedItems && (
         <div className="alert alert-danger d-flex align-items-center mb-3 py-2" role="alert">
           <Package size={20} className="me-2 flex-shrink-0" />
           <div>
@@ -253,7 +256,7 @@ const TransferScreen = ({ onExit, transferItems, setView, onSubmit, transferType
               <span className="fs-5 fw-bolder text-danger">₹{totalTransferAmount}</span>
               <button className="btn btn-success rounded-3 shadow" onClick={() => {
                 if (onSubmit) {
-                  onSubmit();
+                  onSubmit(itemReasons);
                 } else if (setView) {
                   setView('HOME');
                 }

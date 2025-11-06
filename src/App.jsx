@@ -170,31 +170,41 @@ const App = () => {
   }, [multiStep]);
 
   // Handler for continuing from TransferScreen to next step
-  const handleTransferContinue = useCallback(() => {
+  const handleTransferContinue = useCallback((itemReasons = {}) => {
     console.log('[DEBUG] Transfer continue - step:', multiStep.step, 'picked items:', multiStep.pickedItems.length);
+    console.log('[DEBUG] Item reasons received:', itemReasons);
+    
+    // Count how many items are marked as "Damaged" in the reasons
+    const damagedCount = Object.values(itemReasons).filter(reason => reason === 'Damaged').length;
+    console.log('[DEBUG] Items marked as Damaged:', damagedCount);
     
     if (multiStep.step === 'transfer-damaged' && multiStep.pickedItems.length > 0) {
-      // After damaged transfer, generate damaged transfer id and go to picked transfer
-      const damagedId = `TFR-D-${Date.now().toString().slice(-6)}`;
-      setSummaryData(prev => ({ ...(prev || {}), damagedTransferId: damagedId, damagedList: (prev?.damagedList ?? multiStep.damagedItems) }));
+      // After damaged transfer, generate damaged transfer id ONLY if items were marked as damaged
+      const damagedId = damagedCount > 0 ? `TFR-D-${Date.now().toString().slice(-6)}` : null;
+      setSummaryData(prev => ({ 
+        ...(prev || {}), 
+        ...(damagedId ? { damagedTransferId: damagedId } : {}),
+        damagedList: (prev?.damagedList ?? multiStep.damagedItems),
+        damagedCount: damagedCount
+      }));
       setMultiStep(prev => ({ ...prev, step: 'transfer-picked' }));
       setItemsToTransfer(multiStep.pickedItems);
       setView('TRANSFER_SCREEN');
     } else {
       // After last transfer step, generate transfer ids only for non-empty lists and go HOME with final popup
   const hasPicked = multiStep.pickedItems.length > 0;
-  // Only consider damaged present if there are damaged items in current multiStep or stored in summaryData
-  const hasDamaged = multiStep.damagedItems.length > 0 || (summaryData?.damagedList && summaryData.damagedList.length > 0) || (summaryData?.damagedCount && summaryData.damagedCount > 0);
+  // Only consider damaged present if items were actually marked as "Damaged"
+  const hasDamaged = damagedCount > 0 || (summaryData?.damagedCount && summaryData.damagedCount > 0);
 
   const pickedId = hasPicked ? `TFR-P-${Date.now().toString().slice(-6)}` : null;
   // ensure damaged id captured only when damaged items exist
-  const damagedId = hasDamaged ? (summaryData?.damagedTransferId || (multiStep.damagedItems.length > 0 ? `TFR-D-${(Date.now()+1).toString().slice(-6)}` : null)) : null;
+  const damagedId = hasDamaged ? (summaryData?.damagedTransferId || (damagedCount > 0 ? `TFR-D-${(Date.now()+1).toString().slice(-6)}` : null)) : null;
 
       setSummaryData(prev => ({
         ...(prev || {}),
         damagedList: (prev?.damagedList ?? multiStep.damagedItems),
         pickedList: (prev?.pickedList ?? multiStep.pickedItems),
-        damagedCount: (prev?.damagedCount ?? multiStep.damagedItems.length),
+        damagedCount: Math.max(damagedCount, prev?.damagedCount || 0),
         pickedCount: (prev?.pickedCount ?? multiStep.pickedItems.length),
         ...(pickedId ? { pickedTransferId: pickedId } : {}),
         ...(damagedId ? { damagedTransferId: damagedId } : {})
