@@ -648,7 +648,10 @@ const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessag
                     return;
                   }
 
-                  onContinue(allProducts);
+                  // Only show invoice and amount if there are short products
+                  const hasShortProducts = shortProductsState.length > 0;
+                  
+                  onContinue(allProducts, hasShortProducts);
                 }}
               >
                 Continue

@@ -181,10 +181,14 @@ const App = () => {
       setItemsToTransfer(multiStep.pickedItems);
       setView('TRANSFER_SCREEN');
     } else {
-      // After last transfer step, generate picked transfer id and go HOME with final popup
-      const pickedId = `TFR-P-${Date.now().toString().slice(-6)}`;
-      // ensure damaged id captured if present
-      const damagedId = summaryData?.damagedTransferId || (multiStep.damagedItems.length > 0 ? `TFR-D-${(Date.now()+1).toString().slice(-6)}` : null);
+      // After last transfer step, generate transfer ids only for non-empty lists and go HOME with final popup
+  const hasPicked = multiStep.pickedItems.length > 0;
+  // Only consider damaged present if there are damaged items in current multiStep or stored in summaryData
+  const hasDamaged = multiStep.damagedItems.length > 0 || (summaryData?.damagedList && summaryData.damagedList.length > 0) || (summaryData?.damagedCount && summaryData.damagedCount > 0);
+
+  const pickedId = hasPicked ? `TFR-P-${Date.now().toString().slice(-6)}` : null;
+  // ensure damaged id captured only when damaged items exist
+  const damagedId = hasDamaged ? (summaryData?.damagedTransferId || (multiStep.damagedItems.length > 0 ? `TFR-D-${(Date.now()+1).toString().slice(-6)}` : null)) : null;
 
       setSummaryData(prev => ({
         ...(prev || {}),
@@ -192,16 +196,15 @@ const App = () => {
         pickedList: (prev?.pickedList ?? multiStep.pickedItems),
         damagedCount: (prev?.damagedCount ?? multiStep.damagedItems.length),
         pickedCount: (prev?.pickedCount ?? multiStep.pickedItems.length),
-        pickedTransferId: pickedId,
-        damagedTransferId: damagedId || prev?.damagedTransferId
+        ...(pickedId ? { pickedTransferId: pickedId } : {}),
+        ...(damagedId ? { damagedTransferId: damagedId } : {})
       }));
 
-      const popup = {
-        invoiceId: summaryData?.invoice?.id,
-        invoiceAmount: summaryData?.invoice?.total,
-        damagedTransferId: damagedId || summaryData?.damagedTransferId,
-        pickedTransferId: pickedId
-      };
+      const popup = {};
+      if (summaryData?.invoice?.id) popup.invoiceId = summaryData.invoice.id;
+      if (summaryData?.invoice?.total) popup.invoiceAmount = summaryData.invoice.total;
+  if (damagedId) popup.damagedTransferId = damagedId;
+      if (pickedId) popup.pickedTransferId = pickedId;
 
       setFinalPopupData(popup);
       setView('HOME');
