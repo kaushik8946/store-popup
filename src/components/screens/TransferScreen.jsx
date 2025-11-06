@@ -9,9 +9,6 @@ import { TableHeader, TableData } from '../common/TableComponents';
 const TransferScreen = ({ onExit, transferItems, setView, onSubmit, transferType = 'Transfer Order', fromStoreName, fromStoreId, toStoreId }) => {
   const transferProducts = transferItems || [];
 
-  // State to manage reasons for rejected items
-  const [itemReasons, setItemReasons] = useState({});
-
   const transferDetails = {
     transferType: 'Emergency',
     labId: '26010',
@@ -53,19 +50,14 @@ const TransferScreen = ({ onExit, transferItems, setView, onSubmit, transferType
   // Compose display for From store as 'Name (ID)'
   const fromStoreDisplay = `${titleCaseName(transferDetails.fromStore)} (${extractIdFromRaw(fromStoreId || transferProducts[0]?.destination || '')})`;
 
-  // Filter out rejected items from total calculation
+  // Calculate total transfer amount
   const totalTransferAmount = transferProducts
-    .filter(p => p.status !== 'REJECTED/BOUNCED')
     .reduce((sum, p) => sum + p.amount, 0)
     .toFixed(2);
 
-  // Check if there are any rejected items
-  const hasRejectedItems = transferProducts.some(p => p.status === 'REJECTED/BOUNCED');
-
   // Check if any items are marked as "Damaged"
-  // This includes: 1) items already marked as damaged from POS (transferType includes 'Damaged')
-  //                2) rejected items where user selected "Damaged" reason
-  const hasDamagedItems = transferType.includes('Damaged') || Object.values(itemReasons).some(reason => reason === 'Damaged');
+  // This includes items already marked as damaged from POS (transferType includes 'Damaged')
+  const hasDamagedItems = transferType.includes('Damaged');
 
   return (
     <div className="container-fluid p-3">
@@ -73,16 +65,6 @@ const TransferScreen = ({ onExit, transferItems, setView, onSubmit, transferType
         <Truck size={24} className='me-2 text-primary' /> {transferType}
       </h2>
 
-      {/* Alert for Rejected Items */}
-      {hasRejectedItems && (
-        <div className="alert alert-warning d-flex align-items-center mb-3 py-2" role="alert">
-          <AlertTriangle size={20} className="me-2 flex-shrink-0" />
-          <div>
-            <strong>Transfer Order Rejected.</strong> Please select a reason (Short/Damaged) for each rejected item before submitting.
-          </div>
-        </div>
-      )}
-      
       {/* Alert for transfer type */}
       {hasDamagedItems && (
         <div className="alert alert-danger d-flex align-items-center mb-3 py-2" role="alert">
@@ -188,10 +170,7 @@ const TransferScreen = ({ onExit, transferItems, setView, onSubmit, transferType
                   <TableHeader>Barcode</TableHeader>
                 </tr></thead>
                 <tbody>
-                  {transferProducts.map((product, index) => {
-                    const isRejected = product.status === 'REJECTED/BOUNCED';
-
-                    return (
+                  {transferProducts.map((product, index) => (
                       <tr key={product.sNo || index}>
                         <TableData>{index + 1}</TableData>
                         <TableData className="fw-medium">{product.productName}</TableData>
@@ -201,13 +180,12 @@ const TransferScreen = ({ onExit, transferItems, setView, onSubmit, transferType
                         <TableData>{product.dt}</TableData>
                         <TableData>₹{product.mrp.toFixed(2)}</TableData>
                         <TableData className='fw-semibold'>{product.qty}</TableData>
-                        <TableData className={`fw-bold ${isRejected ? 'text-danger' : 'text-danger'}`}>
-                          {isRejected ? 'REJECTED' : `₹${product.amount.toFixed(2)}`}
+                        <TableData className="fw-bold text-danger">
+                          ₹{product.amount.toFixed(2)}
                         </TableData>
                         <TableData>{product.barcode}</TableData>
                       </tr>
-                    );
-                  })}
+                    ))}
                   {transferProducts.length === 0 && (
                     <tr key="empty-transfer">
                       <td colSpan="10" className="text-center py-3 text-secondary fst-italic">
@@ -232,7 +210,7 @@ const TransferScreen = ({ onExit, transferItems, setView, onSubmit, transferType
               <span className="fs-5 fw-bolder text-danger">₹{totalTransferAmount}</span>
               <button className="btn btn-success rounded-3 shadow" onClick={() => {
                 if (onSubmit) {
-                  onSubmit(itemReasons);
+                  onSubmit();
                 } else if (setView) {
                   setView('HOME');
                 }

@@ -35,7 +35,7 @@ src/
 - **TopBar** - Red navigation bar with MedPlus branding, menu items, and live date/time
 
 ### Notification Components
-- **MiniFulfillmentNotification** - Transfer order notification with Skip/Reject/Accept actions
+- **MiniFulfillmentNotification** - Transfer order notification with Skip/Accept actions
 
 ### Screen Components
 - **HomeView** - Landing dashboard with welcome message

@@ -5,7 +5,7 @@ import { MOCK_CONFIG, MOCK_TO_REQUEST } from '../../data/mockData';
 /**
  * Small, non-intrusive notification containing all fulfillment actions.
  */
-const MiniFulfillmentNotification = ({ request, onSkip, onProcess, onReject, isMandatory, isClosing }) => {
+const MiniFulfillmentNotification = ({ request, onSkip, onProcess, isMandatory, isClosing }) => {
   const skipsLeft = MOCK_CONFIG.noOfTimes - request.timesDisplayed - 1;
   const isSkippableConfig = MOCK_CONFIG.isSkippable === 'Y';
   // isSkipAllowed is always false if isMandatory is true (final attempt)

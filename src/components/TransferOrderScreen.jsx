@@ -36,7 +36,7 @@ export default function TransferOrderScreen({ onComplete, onCancel }) {
   return (
     <div className="transfer-order-screen">
       <div className="transfer-order-header">
-        <h2>Create Transfer Order - Rejected Products</h2>
+        <h2>Create Transfer Order</h2>
         <button className="close-btn" onClick={onCancel}>×</button>
       </div>
 

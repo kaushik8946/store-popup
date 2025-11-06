@@ -51,30 +51,6 @@ const App = () => {
     setView('ORDER');
   }, []);
 
-  const handleReject = useCallback(() => {
-    console.log('[SYSTEM] TO Draft Rejected. Preparing bounce/indent.');
-    setIsNotificationActive(false);
-
-    // Create rejected items for all products in the order (first 3 products from MOCK_ORDER_PRODUCTS)
-    const rejectedTransferItems = MOCK_ORDER_PRODUCTS.slice(0, 3).map((product) => ({
-      sNo: product.sNo,
-      productName: product.productName,
-      manufacturer: product.manufacturer,
-      pack: product.pack,
-      batch: product.batch,
-      dt: product.dt,
-      mrp: product.mrp,
-      qty: product.qty,
-      amount: 0, // Amount is 0 for rejected items
-      barcode: product.barcode,
-      status: 'REJECTED/BOUNCED',
-    }));
-
-    // Set all rejected items and navigate to the Transfer Screen
-    setItemsToTransfer(rejectedTransferItems);
-    setView('TRANSFER_SCREEN');
-  }, []);
-
   const handleSkip = useCallback(() => {
     const newTimesDisplayed = requestData.timesDisplayed + 1;
     setRequestData(prev => ({
@@ -174,39 +150,19 @@ const App = () => {
     console.log('[DEBUG] Transfer continue - step:', multiStep.step, 'picked items:', multiStep.pickedItems.length);
     console.log('[DEBUG] Item reasons received:', itemReasons);
     
-    // Count damaged items from multiple sources:
-    // 1. Items already categorized as damaged from POS screen (stored in multiStep.damagedItems)
-    // 2. Items where user selected "Damaged" in itemReasons (for REJECTED items - currently not used since UI removed)
-    // 3. Previously stored damaged count from earlier steps
+    // Only count damaged items from THIS order (current multiStep)
+    const damagedCount = multiStep.damagedItems?.length || 0;
     
-    const rejectedItemsMarkedAsDamaged = Object.values(itemReasons).filter(reason => reason === 'Damaged').length;
-    
-    // Count already damaged items - check multiStep.damagedItems regardless of current step
-    // because damaged items are set during initial categorization and persist across steps
-    const alreadyDamagedItems = multiStep.damagedItems?.length || 0;
-    
-    // Consider previously saved damaged count from earlier transfer steps
-    const previouslyCountedDamaged = summaryData?.damagedCount || 0;
-    
-    // Total damaged count is the max of:
-    // - Current step's damaged items + rejected items marked as damaged
-    // - Previously counted damaged items (to handle multi-step scenarios)
-    const currentStepDamagedCount = rejectedItemsMarkedAsDamaged + alreadyDamagedItems;
-    const totalDamagedCount = Math.max(currentStepDamagedCount, previouslyCountedDamaged);
-    
-    console.log('[DEBUG] Already damaged items:', alreadyDamagedItems);
-    console.log('[DEBUG] Rejected items marked as Damaged:', rejectedItemsMarkedAsDamaged);
-    console.log('[DEBUG] Previously counted damaged:', previouslyCountedDamaged);
-    console.log('[DEBUG] Total damaged count:', totalDamagedCount);
+    console.log('[DEBUG] Current order damaged items:', damagedCount);
     
     if (multiStep.step === 'transfer-damaged' && multiStep.pickedItems.length > 0) {
       // After damaged transfer, generate damaged transfer id ONLY if there are damaged items
-      const damagedId = totalDamagedCount > 0 ? `TFR-D-${Date.now().toString().slice(-6)}` : null;
+      const damagedId = damagedCount > 0 ? `TFR-D-${Date.now().toString().slice(-6)}` : null;
       setSummaryData(prev => ({ 
         ...(prev || {}), 
         ...(damagedId ? { damagedTransferId: damagedId } : {}),
-        damagedList: (prev?.damagedList ?? multiStep.damagedItems),
-        damagedCount: totalDamagedCount
+        damagedList: multiStep.damagedItems,
+        damagedCount: damagedCount
       }));
       setMultiStep(prev => ({ ...prev, step: 'transfer-picked' }));
       setItemsToTransfer(multiStep.pickedItems);
@@ -214,20 +170,17 @@ const App = () => {
     } else {
       // After last transfer step, generate transfer ids only for non-empty lists and go HOME with final popup
       const hasPicked = multiStep.pickedItems.length > 0;
-      // Only consider damaged present if items were actually marked as "Damaged"
-      const hasDamaged = totalDamagedCount > 0;
+      const hasDamaged = damagedCount > 0;
 
       const pickedId = hasPicked ? `TFR-P-${Date.now().toString().slice(-6)}` : null;
-      // ensure damaged id captured only when damaged items exist
-      // Use existing damagedTransferId if already generated, otherwise generate new one
       const damagedId = hasDamaged ? (summaryData?.damagedTransferId || `TFR-D-${(Date.now()+1).toString().slice(-6)}`) : null;
 
       setSummaryData(prev => ({
         ...(prev || {}),
-        damagedList: (prev?.damagedList ?? multiStep.damagedItems),
-        pickedList: (prev?.pickedList ?? multiStep.pickedItems),
-        damagedCount: totalDamagedCount,
-        pickedCount: (prev?.pickedCount ?? multiStep.pickedItems.length),
+        damagedList: multiStep.damagedItems,
+        pickedList: multiStep.pickedItems,
+        damagedCount: damagedCount,
+        pickedCount: multiStep.pickedItems.length,
         ...(pickedId ? { pickedTransferId: pickedId } : {}),
         ...(damagedId ? { damagedTransferId: damagedId } : {})
       }));
@@ -325,7 +278,6 @@ const App = () => {
                 request={requestData}
                 onSkip={handleSkip}
                 onProcess={handleProcess}
-                onReject={handleReject}
                 isMandatory={isMandatory}
               />
             </div>

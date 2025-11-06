@@ -2,7 +2,7 @@ import React from 'react';
 import { AlertTriangle, X, SkipForward, Check } from 'lucide-react';
 import { MOCK_CONFIG, MOCK_TO_REQUEST } from '../data/mockData';
 
-const MiniFulfillmentNotification = ({ request, onSkip, onProcess, onReject, isMandatory }) => {
+const MiniFulfillmentNotification = ({ request, onSkip, onProcess, isMandatory }) => {
   const skipsLeft = MOCK_CONFIG.noOfTimes - request.timesDisplayed - 1;
   const isSkippableConfig = MOCK_CONFIG.isSkippable === 'Y';
   const isSkipAllowed = isSkippableConfig && request.timesDisplayed < (MOCK_CONFIG.noOfTimes - 1);
@@ -30,13 +30,6 @@ const MiniFulfillmentNotification = ({ request, onSkip, onProcess, onReject, isM
       </div>
 
       <div className="d-flex justify-content-between gap-3">
-        <button
-          onClick={onReject}
-          className="btn btn-danger btn-sm flex-grow-1 d-flex align-items-center justify-content-center"
-        >
-          <X size={16} className="me-1" /> Reject
-        </button>
-
         {isSkipAllowed && (
           <button
             onClick={onSkip}
