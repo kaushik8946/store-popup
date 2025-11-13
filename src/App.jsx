@@ -1,22 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { MOCK_TO_REQUEST, MOCK_CONFIG, MOCK_ORDER_PRODUCTS } from './data/mockData';
+import React, { useState, useCallback } from 'react';
+import './styles/global.css';
+import { MOCK_TO_REQUEST, MOCK_CONFIG } from './data/mockData';
 import TopBar from './components/layout/TopBar';
-import HomeView from './components/screens/HomeView';
-import POSOrderScreen from './components/screens/POSOrderScreen';
-import TransferScreen from './components/screens/TransferScreen';
-import InvoiceScreen from './components/screens/InvoiceScreen';
-import MiniFulfillmentNotification from './components/notifications/MiniFulfillmentNotification';
-import MessageBox from './components/common/MessageBox';
+import BootstrapScripts from './components/BootstrapScripts';
+import MainContent from './components/MainContent';
+import PopupManager from './components/PopupManager';
 
-// Load Bootstrap CSS and JS scripts
-const BootstrapScripts = () => (
-  <>
-    {/* Using standard Bootstrap 5 CDN */}
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"></script>
-  </>
-);
 
 /**
  * Main Application Component (Layout and State Management)
@@ -68,7 +57,7 @@ const App = () => {
   }, [requestData]);
 
   // Multi-step flow: after submit in POSOrderScreen
-  const handleContinueTransfer = useCallback((allProducts) => {
+  const handleContinueTransfer = useCallback((allProducts = []) => {
     console.log('[DEBUG] All products received:', allProducts);
     
     // Split products by reason/status
@@ -217,50 +206,7 @@ const App = () => {
   }, []);
 
   // Conditional Content Rendering
-  let mainContent;
-  if (view === 'HOME') {
-    mainContent = <HomeView />;
-  } else if (view === 'ORDER') {
-    mainContent = <POSOrderScreen onExit={handleExitOrderScreen} onContinue={handleContinueTransfer} continueMessage={continueMessage} setContinueMessage={setContinueMessage} />;
-  } else if (view === 'INVOICE_SCREEN') {
-    mainContent = <InvoiceScreen invoiceItems={multiStep.invoiceItems} onContinue={handleInvoiceContinue} setView={setView} />;
 
-  } else if (view === 'TRANSFER_SCREEN') {
-    // Show different transfer screens based on step
-    let transferItems = itemsToTransfer;
-
-    // Example inventory identifiers (same format as existing store string)
-    const fromStoreId = 'NAPHYSS0038A(PRT&A-OHS-HYD-INVENT)';
-    let toStoreId = fromStoreId;
-
-    // Attach full inventory ids as destination for transfer items
-    if (multiStep.step === 'transfer-damaged') {
-      toStoreId = 'NAPHYSS0039R(RETURN-INVENTORY)';
-      transferItems = itemsToTransfer.map(item => ({ 
-        ...item, 
-        destination: toStoreId,
-        transferType: 'Damaged Items'
-      }));
-    } else if (multiStep.step === 'transfer-picked') {
-      toStoreId = 'NAPHYSS0040S(SALE-HUB)';
-      transferItems = itemsToTransfer.map(item => ({ 
-        ...item, 
-        destination: toStoreId,
-        transferType: 'Picked Items'
-      }));
-    }
-
-    mainContent = <TransferScreen 
-      onExit={handleExitOrderScreen} 
-      transferItems={transferItems} 
-      setView={setView} 
-      onSubmit={handleTransferContinue}
-      transferType={multiStep.step === 'transfer-damaged' ? 'Damaged Items (Return Inventory)' : multiStep.step === 'transfer-picked' ? 'Picked Items (Sale Hub)' : 'Transfer Order'}
-  fromStoreName={'miyapur x-road'}
-  fromStoreId={fromStoreId}
-      toStoreId={toStoreId}
-    />;
-  }
 
   return (
     <div className="d-flex flex-column vh-100 bg-light">
@@ -270,50 +216,28 @@ const App = () => {
 
         {/* Main Content Area */}
         <main className="flex-grow-1 overflow-y-auto position-relative">
-          {mainContent}
+          <MainContent
+            view={view}
+            multiStep={multiStep}
+            itemsToTransfer={itemsToTransfer}
+            continueMessage={continueMessage}
+            setContinueMessage={setContinueMessage}
+            handleExitOrderScreen={handleExitOrderScreen}
+            handleContinueTransfer={handleContinueTransfer}
+            handleInvoiceContinue={handleInvoiceContinue}
+            setView={setView}
+          />
 
-          {/* --- NOTIFICATION RENDERING (Skippable or Mandatory) --- */}
-          {isNotificationActive && !finalPopupData && (
-            <div className={`position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center ${isMandatory ? 'bg-black bg-opacity-25' : ''}`} style={{ zIndex: 1040 }}>
-              <MiniFulfillmentNotification
-                request={requestData}
-                onSkip={handleSkip}
-                onProcess={handleProcess}
-                isMandatory={isMandatory}
-              />
-            </div>
-          )}
-
-          {/* Final popup after transfer completion (invoice + transfer ids) */}
-          {finalPopupData && (
-            <MessageBox
-              message={(
-                <div>
-                  {finalPopupData.invoiceId && (
-                    <div className="mb-2"><strong>Invoice:</strong> {finalPopupData.invoiceId}</div>
-                  )}
-
-                  {typeof finalPopupData.invoiceAmount !== 'undefined' && finalPopupData.invoiceAmount !== null && (
-                    <div className="mb-2"><strong>Amount:</strong> ₹{finalPopupData.invoiceAmount}</div>
-                  )}
-
-                  {finalPopupData.damagedTransferId && (
-                    <div className="mb-2 text-nowrap"><strong>Damaged Transfer ID:</strong> {finalPopupData.damagedTransferId}</div>
-                  )}
-
-                  {finalPopupData.pickedTransferId && (
-                    <div className="mb-0 text-nowrap"><strong>Picked Transfer ID:</strong> {finalPopupData.pickedTransferId}</div>
-                  )}
-                </div>
-              )}
-              onClose={() => {
-                setFinalPopupData(null);
-                setSummaryData(null); // Clear all summary data when popup is closed
-                // allow notifications to resume after user closes the summary popup
-                setIsNotificationActive(true);
-              }}
-            />
-          )}
+          <PopupManager
+            isNotificationActive={isNotificationActive}
+            finalPopupData={finalPopupData}
+            isMandatory={isMandatory}
+            requestData={requestData}
+            handleSkip={handleSkip}
+            handleProcess={handleProcess}
+            setFinalPopupData={setFinalPopupData}
+            setIsNotificationActive={setIsNotificationActive}
+          />
         </main>
       </div>
     </div>

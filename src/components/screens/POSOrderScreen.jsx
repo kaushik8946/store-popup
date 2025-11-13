@@ -9,7 +9,6 @@ import { TableHeader, TableData } from '../common/TableComponents';
  */
 const POSOrderScreen = ({ onExit, onContinue, continueMessage, setContinueMessage }) => {
   // 1. Initialize State: Picklist starts with products 1, 2, and 3
-  // 1. Initialize State: Picklist starts with products 1, 2, and 3
   const initialPicklist = MOCK_ORDER_PRODUCTS.slice(0, 3).map(p => {
     // Find a batch where pack size divides qty evenly, otherwise use first batch
     let selectedBatchData = p.batches ? p.batches[0] : null;

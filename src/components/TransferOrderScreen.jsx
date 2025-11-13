@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MOCK_SALE_ORDER_PRODUCTS } from '../data/mockData';
-import './TransferOrderScreen.css';
+import '../styles/global.css';
 
 export default function TransferOrderScreen({ onComplete, onCancel }) {
   const [transferOrders, setTransferOrders] = useState(
